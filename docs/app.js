@@ -123,6 +123,9 @@ function altPoint(lat, lon) { // altitude météo interpolée, faute de relief
   const g = M.grille; const i = Math.round((lat - g.lat0) / g.dlat), j = Math.round((lon - g.lon0) / g.dlon);
   const n = nodeIdx[i * g.nlon + j]; return n >= 0 ? M.points[n].alt : 600;
 }
+// canal vert de la carte des milieux : relief (frein 0-1) et versant (-1 sud … +1 nord)
+const relF = (g) => (G.codage === 2 ? (g >> 4) / 15 : g / 250);
+const nordF = (g) => (G.codage === 2 ? ((g & 15) - 7) / 7 : 0);
 const altPixel = (b, lat, lon) => (b >> 1 ? ((b >> 1) - 1) * 24 + 12 : altPoint(lat, lon));
 
 /* ---------- rendu ---------- */
@@ -131,6 +134,7 @@ function dessine() {
   const t0 = performance.now();
   const out = new ImageData(W, H), o = out.data;
   const lut = LUT[state.esp];
+  const kVersant = M ? VERSANT_K[M.mois[M.j0 + state.jour] - 1] / -GRAD : 0;
   const pousse = state.mode === "pousse" && M;
   // cache de l'indice météo sur une grille grossière (8 px = 400 m) pour la vitesse
   const S = 8, cw = Math.ceil(W / S) + 1, chh = Math.ceil(H / S) + 1;
@@ -142,10 +146,12 @@ function dessine() {
       if (code < 4) continue;
       const b = HAB[p + 2];
       if (state.prive && !(b & 1)) continue;
-      let v = lut[code] * HAB[p + 1] / 250, rgb;
+      const g = HAB[p + 1];
+      let v = lut[code] * relF(g), rgb;
       if (v <= 0) continue;
       if (pousse) {
-        const alt = altPixel(b, lat, colLon[k]);
+        // versant : un versant nord se comporte comme un terrain plus haut (plus frais), un versant sud comme plus bas
+        const alt = altPixel(b, lat, colLon[k]) + kVersant * nordF(g);
         const key = ((r / S) | 0) * cw * 40 + ((k / S) | 0) * 40 + Math.min(39, (alt / 50) | 0);
         let m = cache.get(key);
         if (m === undefined) { m = indiceMeteo(lat, colLon[k], alt, state.jour, state.esp); cache.set(key, m); }
@@ -242,7 +248,7 @@ function pixel(latlng) {
   const k = Math.floor(((latlng.lng - lo0) / (lo1 - lo0)) * W);
   const r = Math.floor(((mercY(la1) - mercY(latlng.lat)) / (mercY(la1) - mercY(la0))) * H);
   if (k < 0 || r < 0 || k >= W || r >= H) return null;
-  const p = (r * W + k) * 4; return { code: HAB[p], rel: HAB[p + 1], b: HAB[p + 2] };
+  const p = (r * W + k) * 4; return { code: HAB[p], rel: relF(HAB[p + 1]), nord: nordF(HAB[p + 1]), b: HAB[p + 2] };
 }
 function graphe(vals, auj) {
   const w = 220, h = 54, bw = w / vals.length;
@@ -329,7 +335,7 @@ function detail(e) {
   if (repere) repere.setLatLng(ll); else repere = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b2118", fillOpacity: 1 }).addTo(map);
   const sp = E.especes[state.esp];
   let em = sp.meteo;
-  const hab = px.code >= 4 ? LUT[state.esp][px.code] * px.rel / 250 : 0;
+  const hab = px.code >= 4 ? LUT[state.esp][px.code] * px.rel : 0;
   const alt = M || px.b >> 1 ? Math.round(altPixel(px.b, ll.lat, ll.lng)) : null;
   const nom = foretPublique(ll);
   const adj = alt !== null ? reglagePour(state.esp, alt) : null;
@@ -344,14 +350,14 @@ function detail(e) {
     const mil = E.milieux[px.code >> 2], sol = E.sols[px.code & 3];
     const fe = sp.essences[px.code >> 2], fs = sp.sols[px.code & 3];
     raisons.push(ligne(hab, `Milieu : ${mil.toLowerCase()}, ${sol.toLowerCase()}`,
-      `Arbres ${fe >= 0.8 ? "très favorables" : fe >= 0.5 ? "favorables" : fe >= 0.25 ? "peu favorables" : "défavorables"} (${Math.round(fe * 100)} %), sol ${Math.round(fs * 100)} %${px.rel < 240 ? `, relief ${Math.round(px.rel / 2.5)} % (pente forte ou altitude)` : ""}. ${sp.nom} : ${sp.arbres.toLowerCase()}.`));
+      `Arbres ${fe >= 0.8 ? "très favorables" : fe >= 0.5 ? "favorables" : fe >= 0.25 ? "peu favorables" : "défavorables"} (${Math.round(fe * 100)} %), sol ${Math.round(fs * 100)} %${px.rel < 0.95 ? `, relief ${Math.round(px.rel * 100)} % (pente forte ou altitude)` : ""}. ${sp.nom} : ${sp.arbres.toLowerCase()}.`));
   }
 
   if (M && px.code >= 4) {
     const s = serieLocale(ll.lat, ll.lng);
     if (s) {
       const dT = GRAD * (alt - s.alt);
-      const r = calculIndice(s.p, s.tm, s.tn, s.e, M.mois, em, dT, true);
+      const r = calculIndice(s.p, s.tm, s.tn, s.e, M.mois, em, dT, true, px.nord);
       const serie = M.jours.map((_, j) => Math.pow(hab, EXPO) * (r.indice[M.j0 + j] || 0));
       const jd = M.j0 + state.jour, d = r.detail[jd], v = serie[state.jour];
       h += `<div class="pt-big">${Math.round(v * 100)}<small>/100</small> <span class="pt-verdict v-${verdict(v).replace(" ", "-")}">${verdict(v)}</span></div>`;
@@ -367,6 +373,12 @@ function detail(e) {
       const [t0, t1, t2, t3] = em.t;
       raisons.push(ligne(d.temp, "Température du sol",
         `${f1(d.tsol)} °C estimés à ${alt} m sur 10 jours ; idéal ${t1}-${t2} °C, rien sous ${t0} ou au-dessus de ${t3} °C${d.tsol > t2 ? " : trop chaud" : d.tsol < t1 ? " : trop froid" : ""}.`));
+      if (Math.abs(px.nord) >= 0.12) {
+        const ecart = VERSANT_K[M.mois[jd] - 1] * px.nord;
+        raisons.push(ligne(0.75, `Versant ${px.nord > 0 ? "nord" : "sud"}`, px.nord > 0
+          ? `Exposé au nord : sol estimé ${f1(ecart)} °C plus frais qu'à plat en cette saison, et qui sèche moins vite. Avantage par temps chaud, retard quand il fait froid.`
+          : `Exposé au sud : sol estimé ${f1(-ecart)} °C plus chaud qu'à plat en cette saison, mais qui sèche plus vite. Avantage en fin de saison et en altitude.`));
+      }
       raisons.push(ligne(d.gel, "Gel", d.tmin < 0.5 ? `Gelée le ${dateCourte(M.dates[d.jgel])} (${f1(d.tmin)} °C) : les poussées sont freinées.` : `Aucune gelée ces 5 derniers jours (minimum ${f1(d.tmin)} °C).`));
       if (adj && (adj.dT || adj.k !== 1))
         raisons.push(ligne(1, "Réglage appris sur vos sorties", `${adj.dT ? `températures idéales décalées de ${adj.dT > 0 ? "+" : ""}${adj.dT} °C` : ""}${adj.dT && adj.k !== 1 ? ", " : ""}${adj.k !== 1 ? `besoin en pluie ×${f1(adj.k)}` : ""} (${adj.n} récoltes, ${adj.n_vides} sorties vides).`));

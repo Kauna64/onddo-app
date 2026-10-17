@@ -2,7 +2,8 @@
 
 Canaux du PNG (pixel de 50 m, Web Mercator) :
   R = milieu * 4 + sol        (milieu et sol : voir docs/data/especes.json ; 0 = hors forêt)
-  G = facteur de relief 0-250 (pente forte ou altitude au-dessus de la forêt productive)
+  G = relief * 16 + versant  (relief 0-15 : 15 = aucun frein, moins si pente forte ou altitude au-dessus de la forêt ;
+                              versant 0-14 : 7 = terrain plat, 14 = versant nord raide, 0 = versant sud raide)
   B = (altitude // 24 + 1) * 2 + forêt publique (0/1) ; altitude 0 = inconnue
 """
 import argparse, json, os, sys, urllib.request
@@ -39,7 +40,8 @@ def main():
     grid = json.load(open("docs/data/grid.json"))
     b = np.load("build/habitat_base.npz")
     milieu, sol, pub = b["milieu"], b["sol"], b["public"]
-    rel = np.full(milieu.shape, 250.0)
+    rel = np.ones(milieu.shape)
+    nord = np.zeros(milieu.shape)
     alt = np.zeros(milieu.shape, dtype=np.uint8)
     if not a.no_dem:
         dem, px = load_dem(grid, a.cache)
@@ -52,11 +54,21 @@ def main():
         # Au-dessus de 1900 m il n'y a plus de forêt productive
         f *= np.clip(1 - (np.nan_to_num(dem) - 1900) / 200, 0, 1)
         rel *= f
+        # Versant : composante nord de la pente (cos de l'orientation × sin de la pente), de -1 (sud) à +1 (nord).
+        # Les lignes de la grille vont du nord au sud : dz/dligne > 0 signifie que le terrain monte vers le sud,
+        # donc que le versant regarde vers le nord. On lisse un peu le relief avant.
+        from scipy.ndimage import uniform_filter
+        lisse = uniform_filter(np.nan_to_num(dem), size=3)
+        gsud, gest = np.gradient(lisse, px)
+        nord = gsud / np.sqrt(1 + gsud ** 2 + gest ** 2)
         alt = np.where(ok, np.clip(dem // 24 + 1, 1, 127), 0).astype(np.uint8)
         grid["dem"] = "Copernicus GLO-30"
     foret = milieu > 0
     R = np.where(foret, milieu.astype(np.uint16) * 4 + sol, 0).astype(np.uint8)
-    G = np.where(foret, rel.round(), 0).astype(np.uint8)
+    q = np.clip(np.round(rel * 15), 0, 15).astype(np.uint16)
+    v = np.clip(np.round(nord * 7) + 7, 0, 14).astype(np.uint16)
+    G = np.where(foret, q * 16 + v, 0).astype(np.uint8)
+    grid["codage"] = 2
     B = np.where(foret, alt.astype(np.uint16) * 2 + pub, 0).astype(np.uint8)
     img = np.dstack([R, G, B])
     Image.fromarray(img, "RGB").save("docs/data/habitat.png", optimize=True)

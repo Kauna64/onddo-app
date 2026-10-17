@@ -43,13 +43,15 @@ class Public:
         if not (0 <= r < H and 0 <= k < W):
             return None
         R, Gc, B = self.hab[r, k]
-        return {"code": R, "rel": Gc, "alt": ((B >> 1) - 1) * 24 + 12 if B >> 1 else None}
+        v2 = self.G.get("codage") == 2
+        return {"code": R, "rel": (Gc >> 4) / 15 if v2 else Gc / 250, "nord": ((Gc & 15) - 7) / 7 if v2 else 0.0,
+                "alt": ((B >> 1) - 1) * 24 + 12 if B >> 1 else None}
 
     def habitat(self, esp, px):
         if not px or px["code"] < 4:
             return 0.0
         sp = self.E["especes"][esp]
-        return sp["essences"][px["code"] >> 2] * sp["sols"][px["code"] & 3] * px["rel"] / 250
+        return sp["essences"][px["code"] >> 2] * sp["sols"][px["code"] & 3] * px["rel"]
 
     def serie(self, lat, lon):
         """Séries météo interpolées entre les nœuds voisins (comme l'appli)."""
@@ -118,12 +120,13 @@ def apprend(pub, sorties):
                "mois": [int(x[5:7]) for x in dd["time"]]}
         alt = (px or {}).get("alt") or a.get("elevation") or 0
         rec["dT"] = GRAD * (alt - (a.get("elevation") or alt))
+        rec["nord"] = (px or {}).get("nord", 0.0)
         groupes.setdefault((esp, secteur(alt)), []).append(rec)
 
     def score(recs, e):
         rp, rn = [], []
         for r in recs:
-            ix = np.nan_to_num(indice(r["P"], r["Tm"], r["Tn"], r["E"], r["mois"], None, r["dT"], params=e))
+            ix = np.nan_to_num(indice(r["P"], r["Tm"], r["Tn"], r["E"], r["mois"], None, r["dT"], params=e, nord=r["nord"]))
             saison = ix[40:]  # jours où l'indice est calculable (40 jours de météo nécessaires)
             rang = float((saison < ix[r["jour"]]).mean())
             (rp if r["trouve"] else rn).append(rang)
@@ -181,7 +184,7 @@ def alertes(pub, carnet, reglages, etat):
                 continue
             e = ajuste(pub.E["especes"][esp]["meteo"], reglage_pour(reglages, esp, alt))
             h = pub.habitat(esp, px) or 0.5  # coin hors carte forestière : on fait confiance à votre coin
-            ix = np.nan_to_num(indice(s["p"], s["tm"], s["tn"], s["e"], mois, esp, GRAD * (alt - s["alt"]), params=e))
+            ix = np.nan_to_num(indice(s["p"], s["tm"], s["tn"], s["e"], mois, esp, GRAD * (alt - s["alt"]), params=e, nord=(px or {}).get("nord", 0.0)))
             fut = [(dates[j], round(100 * (h ** EXPO) * ix[j])) for j in range(auj, len(dates))]
             jour, v = max(fut, key=lambda x: x[1])
             liste.append({"coin": c["id"], "nom": c.get("nom", "Coin"), "esp": esp, "jour": jour, "indice": v,
