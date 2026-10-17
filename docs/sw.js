@@ -1,8 +1,8 @@
 /* Service worker : fonctionnement sans réseau */
-const VERSION = "onddo-v2";
+const VERSION = "onddo-v3";
 const COQUILLE = ["./", "index.html", "app.js", "manifest.webmanifest", "icons/icon-192.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "data/grid.json", "data/especes.json", "data/habitat.png", "data/forets_publiques.geojson"];
+  "indice.js", "data/grid.json", "data/especes.json", "data/chasse.json", "data/habitat.png", "data/forets_publiques.geojson"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COQUILLE)).then(() => self.skipWaiting()));
@@ -20,7 +20,7 @@ self.addEventListener("fetch", (e) => {
   const url = e.request.url;
   if (e.request.method !== "GET") return;
   // météo : réseau d'abord, copie locale si pas de réseau
-  if (/\/data\/(meteo|especes|grid)\.json|\/data\/habitat\.png/.test(url)) {
+  if (/\/data\/(meteo|especes|grid|chasse)\.json|\/data\/habitat\.png/.test(url)) {
     e.respondWith(fetch(e.request).then((r) => {
       const copie = r.clone(); caches.open("onddo-donnees").then((c) => c.put(url.split("?")[0], copie)); return r;
     }).catch(() => caches.match(url.split("?")[0], { ignoreSearch: true })));

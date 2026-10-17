@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="halo" cx="50%" cy="46%" r="55%">
+      <stop offset="0" stop-color="#ff8a1f" stop-opacity="1"/>
+      <stop offset=".5" stop-color="#ff2f8e" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#1d1730" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="chapeau" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a8542a"/><stop offset=".6" stop-color="#7a3518"/><stop offset="1" stop-color="#5a2410"/>
+    </linearGradient>
+    <linearGradient id="pied" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff3d6"/><stop offset=".7" stop-color="#f1dcae"/><stop offset="1" stop-color="#d9bb83"/>
+    </linearGradient>
+    <filter id="spray" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="4" result="b"/>
+      <feDisplacementMap in="SourceGraphic" in2="b" scale="7"/>
+    </filter>
+    <filter id="flou"><feGaussianBlur stdDeviation="9"/></filter>
+    <pattern id="briques" width="128" height="64" patternUnits="userSpaceOnUse">
+      <rect width="128" height="64" fill="#1d1730"/>
+      <path d="M0 31.5H128M0 63.5H128M32 0V31.5M96 0V31.5M0 32V64M64 32V64" stroke="#2c2446" stroke-width="3"/>
+    </pattern>
+  </defs>
+  <rect width="512" height="512" fill="url(#briques)"/>
+  <circle cx="256" cy="240" r="250" fill="url(#halo)"/>
+  <!-- éclaboussures -->
+  <g fill="#46e0c8" filter="url(#spray)">
+    <circle cx="78" cy="118" r="10"/><circle cx="104" cy="88" r="5"/><circle cx="430" cy="140" r="8"/><circle cx="448" cy="176" r="4"/>
+    <circle cx="70" cy="400" r="6"/><circle cx="446" cy="408" r="9"/><circle cx="414" cy="438" r="4"/>
+  </g>
+  <!-- ombre portée façon contour décalé -->
+  <g transform="translate(14 14)" opacity=".55" filter="url(#flou)">
+    <path d="M200 268 C188 320 150 370 162 418 Q176 456 256 458 Q336 456 350 418 C362 370 324 320 312 268 Z" fill="#000"/>
+    <path d="M70 262 C70 128 170 70 256 70 C342 70 442 128 442 262 C442 290 70 290 70 262 Z" fill="#000"/>
+  </g>
+  <!-- contour graffiti -->
+  <g filter="url(#spray)" fill="none" stroke="#46e0c8" stroke-width="40" stroke-linejoin="round">
+    <path d="M200 268 C188 320 150 370 162 418 Q176 456 256 458 Q336 456 350 418 C362 370 324 320 312 268 Z"/><path d="M70 262 C70 128 170 70 256 70 C342 70 442 128 442 262
+             C442 282 420 288 400 286 L400 318 Q400 332 391 332 Q382 332 382 318 L382 286
+             C340 290 300 291 262 291 L262 340 Q262 354 252 354 Q242 354 242 340 L242 291
+             C200 291 160 290 128 286 L128 306 Q128 318 120 318 Q112 318 112 306 L112 284
+             C88 282 70 278 70 262 Z"/>
+  </g>
+  <!-- pied -->
+  <g filter="url(#spray)">
+    <path d="M200 268 C188 320 150 370 162 418 Q176 456 256 458 Q336 456 350 418 C362 370 324 320 312 268 Z" fill="url(#pied)" stroke="#111" stroke-width="14" stroke-linejoin="round"/>
+    <path d="M214 300 l14 10 l12 -12 l14 12 l14 -12 l14 12 l14 -10 M206 340 l16 10 l14 -12 l14 12 l14 -12 l14 12 l16 -10 M204 382 l16 10 l14 -12 l14 12 l14 -12 l14 12 l16 -10"
+      fill="none" stroke="#b98c4f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M214 292 Q178 370 190 424" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".9"/>
+  </g>
+  <!-- chapeau avec coulures -->
+  <g filter="url(#spray)">
+    <path d="M70 262 C70 128 170 70 256 70 C342 70 442 128 442 262
+             C442 282 420 288 400 286 L400 318 Q400 332 391 332 Q382 332 382 318 L382 286
+             C340 290 300 291 262 291 L262 340 Q262 354 252 354 Q242 354 242 340 L242 291
+             C200 291 160 290 128 286 L128 306 Q128 318 120 318 Q112 318 112 306 L112 284
+             C88 282 70 278 70 262 Z"
+      fill="url(#chapeau)" stroke="#111" stroke-width="14" stroke-linejoin="round"/>
+    <path d="M112 214 C120 150 176 110 236 102" fill="none" stroke="#ffd29a" stroke-width="16" stroke-linecap="round" opacity=".85"/>
+    <path d="M262 98 C276 97 290 98 300 100" fill="none" stroke="#ffd29a" stroke-width="12" stroke-linecap="round" opacity=".7"/>
+  </g>
+  <!-- étincelles -->
+  <g fill="#fff" filter="url(#spray)">
+    <path d="M398 92 l7 20 l20 7 l-20 7 l-7 20 l-7 -20 l-20 -7 l20 -7 z"/>
+    <path d="M118 360 l5 13 l13 5 l-13 5 l-5 13 l-5 -13 l-13 -5 l13 -5 z"/>
+  </g>
+</svg>

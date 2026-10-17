@@ -30,14 +30,22 @@ def geol_class(descr: str) -> str:
     d = (descr or "").lower()
     if re.search(r"etang|lac|rivi", d):
         return "eau"
-    acid = re.search(r"gr[eè]s|schiste|quartzite|granit|gneiss|micaschiste|pélite|pelite|psam|sable|galet|"
-                     r"cailloutis|poudingue|silex|grauwacke|conglom|ophite|volcan|tourbe|argile", d)
-    calc = re.search(r"calcaire|dolomie|craie|marno-calcaire|cargneule|calcschiste|urgonien", d)
+    acid = re.search(r"gr[eéè]s|schist|quartzite|granit|gneiss|micaschiste|p[ée]lite|psam|sable|galet|limon|"
+                     r"cailloutis|poudingue|silex|grauwacke|conglom|ophite|volcan|tourbe|argile|loess|colluvion", d)
+    calc = re.search(r"calcaire|dolomie|craie|cargneule|calcschiste|urgonien", d)
+    # Le flysch (alternance de marnes, grès et calcaires) donne en surface des sols décalcifiés :
+    # il n'est jamais classé calcaire, même quand la description cite des calcaires.
+    flysch = "flysch" in d or "flisch" in d
     marne = "marne" in d
-    if calc and not acid:
+    if calc and not (acid or flysch or marne):
         return "calcaire"
-    if calc or marne:
+    if flysch and acid and not marne:
+        return "acide"
+    if calc or marne or flysch:
         return "neutre"
+    if acid:
+        return "acide"
+    return "neutre"
     if acid:
         return "acide"
     return "neutre"

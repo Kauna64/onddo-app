@@ -1,17 +1,12 @@
 """Récupère la météo (Open-Meteo) sur une grille couvrant les forêts du 64 et écrit docs/data/meteo.json."""
 import json, time, urllib.request, urllib.error, datetime as dt
 import numpy as np
-from indice import indice, NIVEAUX, ESPECES
+from indice import NIVEAUX, bouche_trous
 
 LAT0, LON0, DLAT, DLON = 42.75, -1.80, 0.05, 0.05
 NLAT, NLON = 19, 38
 PASSE, FUTUR, AFFICHE = 45, 9, 7  # jours d'historique pour le bilan d'eau, de prévision, affichés de chaque côté
 DAILY = "precipitation_sum,temperature_2m_mean,temperature_2m_min,et0_fao_evapotranspiration"
-
-# Chaque valeur d'indice (0-1) est codée sur un caractère (pas de 0,02) pour alléger le fichier
-ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno"
-def code(serie):
-    return "".join(ALPHABET[int(round(50 * min(max(x, 0), 1)))] if not np.isnan(x) else "0" for x in serie)
 
 def points_actifs():
     """Garde les nœuds de la grille proches d'une forêt."""
@@ -63,23 +58,22 @@ def main():
     dates = res[0]["daily"]["time"]
     mois = [int(s[5:7]) for s in dates]
     auj = dates.index(dt.date.today().isoformat()) if dt.date.today().isoformat() in dates else PASSE
-    sel = slice(auj - AFFICHE, auj + AFFICHE + 1)
+    fin = min(len(dates), auj + AFFICHE + 1)
+    # L'appli recalcule l'indice elle-même (docs/indice.js) à partir des séries brutes :
+    # elle peut ainsi l'évaluer à l'altitude exacte de chaque point et expliquer chaque facteur.
     out = {"genere": dt.datetime.now(dt.timezone.utc).isoformat(timespec="minutes"),
-           "jours": dates[sel], "aujourdhui": AFFICHE, "niveaux": NIVEAUX,
+           "dates": dates[:fin], "aujourdhui": auj, "affiche": AFFICHE, "niveaux": NIVEAUX,
            "grille": {"lat0": LAT0, "lon0": LON0, "dlat": DLAT, "dlon": DLON, "nlat": NLAT, "nlon": NLON},
-           "alphabet": ALPHABET, "points": [], "especes": list(ESPECES), "indice": {e: [] for e in ESPECES}}
+           "points": []}
+    r1 = lambda a: [round(float(x), 1) for x in a[:fin]]
     for p, r in zip(pts, res):
         d = r["daily"]
         P, Tm, Tn, E = (np.array(d[v], dtype=float) for v in DAILY.split(","))
-        Tm = np.where(np.isnan(Tm), Tn + 5, Tm)  # trous comblés ensuite dans indice()
+        Tm = bouche_trous(np.where(np.isnan(Tm), Tn + 5, Tm)); Tn = bouche_trous(Tn)
+        P, E = np.nan_to_num(P), np.nan_to_num(bouche_trous(E))
         alt = r.get("elevation", 0) or 0
-        for esp in ESPECES:
-            out["indice"][esp].append([code(indice(P, Tm, Tn, E, mois, esp, GRAD * (lv - alt))[sel]) for lv in NIVEAUX])
         out["points"].append({"i": p[0], "j": p[1], "lat": p[2], "lon": p[3], "alt": round(alt),
-                              "pluie15": round(float(np.nansum(P[auj - 14:auj + 1])), 1),
-                              "pluie7f": round(float(np.nansum(P[auj + 1:auj + 8])), 1),
-                              "pluie": [round(float(x), 1) for x in np.nan_to_num(P[sel])],
-                              "tmoy": [round(float(x), 1) for x in np.nan_to_num(Tm[sel])]})
+                              "p": r1(P), "tm": r1(Tm), "tn": r1(Tn), "e": r1(E)})
     json.dump(out, open("docs/data/meteo.json", "w"), separators=(",", ":"))
     print("meteo.json écrit", flush=True)
 

@@ -2,8 +2,10 @@
 "use strict";
 
 const state = { esp: "edulis", mode: "pousse", jour: 0, prive: false };
-let G, M, E, HAB, W, H, map, overlay, pubLayer, rowLat, colLon, nodeIdx;
-const LUT = {}, IDX = {};   // habitat par code milieu/sol, indice météo décodé, par espèce
+let G, M, E, C, HAB, W, H, map, overlay, pubLayer, rowLat, colLon, nodeIdx, repere;
+const LUT = {}, IDX = {};   // habitat par code milieu/sol ; indice météo par point, altitude et jour, par espèce
+const GRAD = -0.0065;       // °C par mètre d'altitude
+const EXPO = 0.6;           // poids de l'habitat : pousse = météo × habitat^0,6
 const NIV_MIN = 0.12;                       // en dessous : transparent
 const $ = (s) => document.querySelector(s);
 
@@ -32,12 +34,13 @@ const fmtJour = (iso) => {
 
 /* ---------- chargement ---------- */
 async function charge() {
-  const [g, m, e] = await Promise.all([
+  const [g, m, e, ch] = await Promise.all([
     fetch("data/grid.json").then((r) => r.json()),
     fetch("data/meteo.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     fetch("data/especes.json").then((r) => r.json()),
+    fetch("data/chasse.json").then((r) => r.json()).catch(() => null),
   ]);
-  G = g; M = m && m.indice ? m : null; E = e; W = g.width; H = g.height;
+  G = g; M = m && m.points && m.points[0] && m.points[0].p ? m : null; E = e; C = ch; W = g.width; H = g.height;
   for (const id of E.ordre) {
     const sp = E.especes[id], t = new Float32Array(128);
     for (let c = 0; c < 128; c++) t[c] = (sp.essences[c >> 2] || 0) * sp.sols[c & 3];
@@ -64,7 +67,12 @@ async function charge() {
   if (M) {
     nodeIdx = new Int32Array(M.grille.nlat * M.grille.nlon).fill(-1);
     M.points.forEach((p, n) => (nodeIdx[p.i * M.grille.nlon + p.j] = n));
-    state.jour = M.aujourdhui;
+    // jours affichés : de J-7 à J+7 autour d'aujourd'hui
+    M.j0 = Math.max(0, M.aujourdhui - M.affiche);
+    M.jours = M.dates.slice(M.j0, M.aujourdhui + M.affiche + 1);
+    M.auj = M.aujourdhui - M.j0;
+    M.mois = M.dates.map((d) => +d.slice(5, 7));
+    state.jour = M.auj;
   }
 }
 
@@ -82,26 +90,28 @@ function indiceMeteo(lat, lon, alt, jour, esp) {
   }
   return w > 0 ? s / w : 0;
 }
-// l'indice est stocké sous forme de texte (1 caractère = pas de 0,02) : décodé une fois par espèce
+// indice calculé dans l'appli (indice.js) pour chaque point météo, à chaque altitude de référence
 function decode(esp) {
   if (IDX[esp]) return IDX[esp];
-  const nL = M.niveaux.length, nJ = M.jours.length, src = M.indice[esp];
-  const a = new Uint8Array(src.length * nL * nJ), val = {};
-  [...M.alphabet].forEach((c, i) => (val[c] = i * 2));
-  src.forEach((niv, n) => niv.forEach((txt, k) => { for (let j = 0; j < nJ; j++) a[(n * nL + k) * nJ + j] = val[txt[j]] || 0; }));
+  const L = M.niveaux, nL = L.length, nJ = M.jours.length, e = E.especes[esp].meteo;
+  const a = new Float32Array(M.points.length * nL * nJ);
+  M.points.forEach((pt, n) => L.forEach((lv, k) => {
+    const r = calculIndice(pt.p, pt.tm, pt.tn, pt.e, M.mois, e, GRAD * (lv - pt.alt), false);
+    for (let j = 0; j < nJ; j++) a[(n * nL + k) * nJ + j] = r[M.j0 + j] || 0;
+  }));
   return (IDX[esp] = a);
 }
 function valNiveau(n, alt, jour, esp) {
   const L = M.niveaux, nL = L.length, nJ = M.jours.length, T = decode(esp);
   const v = (k) => T[(n * nL + k) * nJ + jour];
-  if (alt <= L[0]) return v(0) / 100;
+  if (alt <= L[0]) return v(0);
   for (let k = 0; k < nL - 1; k++) {
     if (alt <= L[k + 1]) {
       const f = (alt - L[k]) / (L[k + 1] - L[k]);
-      return (v(k) * (1 - f) + v(k + 1) * f) / 100;
+      return v(k) * (1 - f) + v(k + 1) * f;
     }
   }
-  return v(nL - 1) / 100;
+  return v(nL - 1);
 }
 function altPoint(lat, lon) { // altitude météo interpolée, faute de relief
   const g = M.grille; const i = Math.round((lat - g.lat0) / g.dlat), j = Math.round((lon - g.lon0) / g.dlon);
@@ -133,7 +143,7 @@ function dessine() {
         const key = ((r / S) | 0) * cw * 40 + ((k / S) | 0) * 40 + Math.min(39, (alt / 50) | 0);
         let m = cache.get(key);
         if (m === undefined) { m = indiceMeteo(lat, colLon[k], alt, state.jour, state.esp); cache.set(key, m); }
-        v *= m;
+        v = Math.pow(v, EXPO) * m;
         if (v < NIV_MIN) continue;
         rgb = rampe(v);
         o[p + 3] = Math.round(150 + 90 * Math.min(1, (v - NIV_MIN) / 0.5));
@@ -165,7 +175,7 @@ function majStatut() {
     s = `Météo du ${d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
     if (age > 30) s += " · données anciennes";
     const j = M.jours[state.jour];
-    if (state.mode === "pousse") s += ` · ${state.jour > M.aujourdhui ? "prévision" : state.jour < M.aujourdhui ? "passé" : "aujourd'hui"} ${new Date(j + "T12:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })}`;
+    if (state.mode === "pousse") s += ` · ${state.jour > M.auj ? "prévision" : state.jour < M.auj ? "passé" : "aujourd'hui"} ${new Date(j + "T12:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })}`;
   }
   $("#status").textContent = s;
   $("#maj").textContent = G.dem ? "Pyrénées-Atlantiques" : "Pyrénées-Atlantiques · relief en attente";
@@ -187,7 +197,7 @@ function especes() {
       state.esp = id;
       try { localStorage.setItem("onddo-espece", id); } catch (_) {}
       box.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === b));
-      ficheEspece(); map.closePopup(); dessine();
+      ficheEspece(); fermePoint(); dessine();
     };
     box.appendChild(b);
   }
@@ -210,9 +220,11 @@ function jours() {
   if (!M) { box.style.display = "none"; return; }
   M.jours.forEach((iso, i) => {
     const f = fmtJour(iso), b = document.createElement("button");
-    b.className = "day" + (i === M.aujourdhui ? " today" : "") + (i < M.aujourdhui ? " past" : "") + (i === state.jour ? " on" : "");
-    b.innerHTML = `${i === M.aujourdhui ? "auj." : f.j}<b>${f.n}</b>`;
-    b.onclick = () => { state.jour = i; box.querySelectorAll(".day").forEach((x, k) => x.classList.toggle("on", k === i)); dessine(); };
+    const ch = chasseJour(iso);
+    b.className = "day" + (i === M.auj ? " today" : "") + (i < M.auj ? " past" : "") + (i === state.jour ? " on" : "") + (ch.battue ? " chasse" : "");
+    b.innerHTML = `${i === M.auj ? "auj." : f.j}<b>${f.n}</b>`;
+    if (ch.battue) b.title = "Jour de chasse courant";
+    b.onclick = () => { state.jour = i; box.querySelectorAll(".day").forEach((x, k) => x.classList.toggle("on", k === i)); dessine(); if (repere) detail({ latlng: repere.getLatLng() }); };
     box.appendChild(b);
   });
   box.children[state.jour].scrollIntoView({ inline: "center", block: "nearest" });
@@ -261,31 +273,123 @@ function dansPoly(ll, geom) {
   }
   return false;
 }
+/* ---------- chasse ---------- */
+const FERIES = new Set(["2026-11-01", "2026-11-11", "2026-12-25", "2027-01-01", "2027-03-29", "2027-05-01", "2027-05-06", "2027-05-08"]);
+function chasseJour(iso) {
+  if (!C) return { saison: false, battue: false };
+  const saison = iso >= C.saison.ouverture && iso <= C.saison.fermeture;
+  const sanglier = iso >= C.saison.ouverture && iso <= C.saison.sanglier_plaine;
+  const wd = new Date(iso + "T12:00").getDay(); // 0 = dimanche
+  const jourChasse = wd === 0 || wd === 3 || wd === 6 || FERIES.has(iso);
+  const palombe = iso.slice(5) >= C.palombe.debut && iso.slice(5) <= C.palombe.fin;
+  return { saison: saison || sanglier, battue: (saison || sanglier) && jourChasse, jourChasse, palombe };
+}
+function chasseZone(ll) {
+  if (!C) return null;
+  return C.zones.find((z) => map.distance(ll, [z.lat, z.lon]) <= z.rayon_km * 1000) || null;
+}
+
+/* ---------- détail d'un point : indice recalculé à l'altitude exacte, avec ses raisons ---------- */
+// séries météo interpolées entre les 4 points de grille voisins
+function serieLocale(lat, lon) {
+  const g = M.grille;
+  const fi = (lat - g.lat0) / g.dlat, fj = (lon - g.lon0) / g.dlon;
+  const i0 = Math.floor(fi), j0 = Math.floor(fj), di = fi - i0, dj = fj - j0;
+  const n = M.dates.length, s = { p: new Float32Array(n), tm: new Float32Array(n), tn: new Float32Array(n), e: new Float32Array(n), alt: 0 };
+  let w = 0;
+  for (const [i, j, wt] of [[i0, j0, (1 - di) * (1 - dj)], [i0 + 1, j0, di * (1 - dj)], [i0, j0 + 1, (1 - di) * dj], [i0 + 1, j0 + 1, di * dj]]) {
+    if (i < 0 || j < 0 || i >= g.nlat || j >= g.nlon || wt <= 0) continue;
+    const k = nodeIdx[i * g.nlon + j]; if (k < 0) continue;
+    const pt = M.points[k];
+    for (let d = 0; d < n; d++) { s.p[d] += wt * pt.p[d]; s.tm[d] += wt * pt.tm[d]; s.tn[d] += wt * pt.tn[d]; s.e[d] += wt * pt.e[d]; }
+    s.alt += wt * pt.alt; w += wt;
+  }
+  if (!w) return null;
+  for (const v of ["p", "tm", "tn", "e"]) for (let d = 0; d < n; d++) s[v][d] /= w;
+  s.alt /= w;
+  return s;
+}
+const dateCourte = (iso) => new Date(iso + "T12:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+const f1 = (x) => x.toLocaleString("fr-FR", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+function verdict(v) { return v >= 0.6 ? "très favorable" : v >= 0.4 ? "favorable" : v >= 0.2 ? "possible" : "faible"; }
+function ligne(note, titre, texte) {
+  const ic = note >= 0.75 ? "ok" : note >= 0.35 ? "moyen" : "non";
+  return `<li class="${ic}"><span class="ic"></span><div><b>${titre}</b><br>${texte}</div></li>`;
+}
+
 function detail(e) {
-  const px = pixel(e.latlng);
+  const ll = e.latlng, px = pixel(ll);
   if (!px) return;
-  const h = px.code >= 4 ? LUT[state.esp][px.code] * px.rel / 250 : 0;
-  const alt = M || px.b >> 1 ? Math.round(altPixel(px.b, e.latlng.lat, e.latlng.lng)) : null;
-  const nom = foretPublique(e.latlng);
-  const esp = E.especes[state.esp].nom;
-  let html = `<div class="pop">`;
-  if (px.code >= 4) html += `<div class="k">${E.milieux[px.code >> 2]} · ${E.sols[px.code & 3].toLowerCase()}${px.rel < 200 ? " · pente forte" : ""}</div>`;
-  if (h === 0) html += `<h4>${px.code >= 4 ? "Milieu défavorable : " + esp : "Hors forêt"}</h4>`;
-  else {
-    html += `<h4>${esp} : habitat ${h >= 0.8 ? "très favorable" : h >= 0.55 ? "favorable" : h >= 0.3 ? "moyen" : "peu favorable"}</h4>`;
-    if (M) {
-      const serie = M.jours.map((_, j) => h * indiceMeteo(e.latlng.lat, e.latlng.lng, alt, j, state.esp));
-      const v = serie[state.jour];
-      html += `<div class="k">Indice de pousse le jour choisi</div><div class="big">${Math.round(v * 100)} / 100</div>${graphe(serie, M.aujourdhui)}`;
+  if (repere) repere.setLatLng(ll); else repere = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b2118", fillOpacity: 1 }).addTo(map);
+  const sp = E.especes[state.esp], em = sp.meteo;
+  const hab = px.code >= 4 ? LUT[state.esp][px.code] * px.rel / 250 : 0;
+  const alt = M || px.b >> 1 ? Math.round(altPixel(px.b, ll.lat, ll.lng)) : null;
+  const nom = foretPublique(ll);
+  let h = `<div class="pt-titre">${sp.nom}</div>`;
+  const raisons = [];
+
+  // habitat
+  if (px.code < 4) {
+    h += `<div class="pt-big">Hors forêt</div><p class="k">Pas de forêt cartographiée ici (BD Forêt : bois de plus de 0,5 ha). Un petit bois ou une haie peut tout de même produire.</p>`;
+  } else {
+    const mil = E.milieux[px.code >> 2], sol = E.sols[px.code & 3];
+    const fe = sp.essences[px.code >> 2], fs = sp.sols[px.code & 3];
+    raisons.push(ligne(hab, `Milieu : ${mil.toLowerCase()}, ${sol.toLowerCase()}`,
+      `Arbres ${fe >= 0.8 ? "très favorables" : fe >= 0.5 ? "favorables" : fe >= 0.25 ? "peu favorables" : "défavorables"} (${Math.round(fe * 100)} %), sol ${Math.round(fs * 100)} %${px.rel < 240 ? `, relief ${Math.round(px.rel / 2.5)} % (pente forte ou altitude)` : ""}. ${sp.nom} : ${sp.arbres.toLowerCase()}.`));
+  }
+
+  if (M && px.code >= 4) {
+    const s = serieLocale(ll.lat, ll.lng);
+    if (s) {
+      const dT = GRAD * (alt - s.alt);
+      const r = calculIndice(s.p, s.tm, s.tn, s.e, M.mois, em, dT, true);
+      const serie = M.jours.map((_, j) => Math.pow(hab, EXPO) * (r.indice[M.j0 + j] || 0));
+      const jd = M.j0 + state.jour, d = r.detail[jd], v = serie[state.jour];
+      h += `<div class="pt-big">${Math.round(v * 100)}<small>/100</small> <span class="pt-verdict v-${verdict(v).replace(" ", "-")}">${verdict(v)}</span></div>`;
+      h += `<div class="k">Indice de pousse le ${dateCourte(M.jours[state.jour])}${state.jour > M.auj ? " (prévision)" : ""}</div>${graphe(serie, M.auj)}`;
+      // pluie déclenchante
+      const [a, , , dmax] = em.lag;
+      let pl = 0, jmax = -1, vmax = 0;
+      for (let k = a; k <= dmax; k++) { const x = s.p[jd - k]; pl += x; if (x > vmax) { vmax = x; jmax = jd - k; } }
+      raisons.push(ligne(d.declenche, "Pluie déclenchante",
+        `${Math.round(d.pluie)} mm « utiles » (pluie tombée ${em.lag[1]} à ${em.lag[2]} jours avant, la plus efficace). ${Math.round(pl)} mm en tout entre le ${dateCourte(M.dates[jd - dmax])} et le ${dateCourte(M.dates[jd - a])}${vmax >= 5 ? `, dont ${Math.round(vmax)} mm le ${dateCourte(M.dates[jmax])}` : ""}. ; il en faut environ ${em.seuil + em.plage} pour un plein déclenchement.`));
+      raisons.push(ligne((d.humide - (em.humide_min ?? 0.3)) / (1 - (em.humide_min ?? 0.3)), "Humidité du sol",
+        `Réserve en eau estimée ${Math.round(d.reserve)} mm sur ${RESERVE} (${d.reserve >= 35 ? "sol bien humide" : d.reserve >= 20 ? "sol frais" : d.reserve >= 10 ? "sol qui s'assèche" : "sol sec"}).`));
+      const [t0, t1, t2, t3] = em.t;
+      raisons.push(ligne(d.temp, "Température du sol",
+        `${f1(d.tsol)} °C estimés à ${alt} m sur 10 jours ; idéal ${t1}-${t2} °C, rien sous ${t0} ou au-dessus de ${t3} °C${d.tsol > t2 ? " : trop chaud" : d.tsol < t1 ? " : trop froid" : ""}.`));
+      raisons.push(ligne(d.gel, "Gel", d.tmin < 0.5 ? `Gelée le ${dateCourte(M.dates[d.jgel])} (${f1(d.tmin)} °C) : les poussées sont freinées.` : `Aucune gelée ces 5 derniers jours (minimum ${f1(d.tmin)} °C).`));
+      raisons.push(ligne(d.saison, "Saison", `${sp.periode} ; ${d.saison >= 0.8 ? "pleine saison" : d.saison >= 0.4 ? "début ou fin de saison" : "hors saison habituelle"}.`));
+      if (d.persiste > d.brut + 0.05 && d.debut >= 0)
+        raisons.push(ligne(d.persiste, "Poussée en cours", `Conditions réunies vers le ${dateCourte(M.dates[d.debut])} ; la poussée se poursuit en s'atténuant.`));
+      // facteur limitant
+      const fx = [["la pluie", d.declenche], ["l'humidité du sol", (d.humide - (em.humide_min ?? 0.3)) / (1 - (em.humide_min ?? 0.3))], ["la température", d.temp], ["le gel", d.gel], ["la saison", d.saison], ["le milieu", hab]];
+      const lim = fx.reduce((m, x) => (x[1] < m[1] ? x : m));
+      if (v < 0.6 && lim[1] < 0.75) h += `<p class="pt-lim">Ce qui limite surtout : <b>${lim[0]}</b>.</p>`;
+      const p15 = s.p.slice(M.aujourdhui - 14, M.aujourdhui + 1).reduce((x, y) => x + y, 0), p7 = s.p.slice(M.aujourdhui + 1, M.aujourdhui + 8).reduce((x, y) => x + y, 0);
+      h += `<ul class="pt-raisons">${raisons.join("")}</ul>`;
+      h += `<p class="k">Pluie : ${Math.round(p15)} mm ces 15 derniers jours, ${Math.round(p7)} mm prévus sur 7 jours.</p>`;
     }
+  } else if (raisons.length) h += `<ul class="pt-raisons">${raisons.join("")}</ul>`;
+
+  if (alt !== null) h += `<p class="k">Altitude ≈ ${alt} m${px.b >> 1 ? "" : " (estimée)"}</p>`;
+  h += `<p class="k">${nom ? "Forêt publique : " + nom + ". Renseignez-vous sur les règles de cueillette de la commune ou de la commission syndicale." : px.b & 1 ? "Forêt publique." : px.code >= 4 ? "Forêt probablement privée : accord du propriétaire nécessaire." : ""}</p>`;
+  // chasse
+  if (M && C) {
+    const iso = M.jours[state.jour], ch = chasseJour(iso), z = chasseZone(ll);
+    let t = !ch.saison ? "Hors saison de chasse." :
+      ch.battue ? `<b>${new Date(iso + "T12:00").toLocaleDateString("fr-FR", { weekday: "long" })} : jour de chasse courant</b>, battues probables. Gilet orange conseillé.` :
+      "Saison de chasse ouverte ; battues moins fréquentes ce jour-là, mais possibles (sanglier).";
+    if (ch.palombe) t += " Passage des palombes : cols et crêtes très fréquentés par les chasseurs.";
+    if (z) t += `<br><b>${z.nom}</b> : ${z.texte} <a href="${z.lien}" target="_blank" rel="noopener">${z.lien_texte}</a>`;
+    h += `<div class="pt-chasse">${t}</div>`;
   }
-  if (M) {
-    const g = M.grille, n = nodeIdx[Math.round((e.latlng.lat - g.lat0) / g.dlat) * g.nlon + Math.round((e.latlng.lng - g.lon0) / g.dlon)];
-    if (n >= 0) { const p = M.points[n]; html += `<div class="k">Pluie 15 derniers jours : <b>${p.pluie15} mm</b> · prévue 7 j : <b>${p.pluie7f} mm</b></div>`; }
-  }
-  if (alt !== null) html += `<div class="k">Altitude ≈ ${alt} m${px.b >> 1 ? "" : " (estimée)"}</div>`;
-  html += `<div class="k">${nom ? "Forêt publique : " + nom : px.b & 1 ? "Forêt publique" : h > 0 ? "Forêt probablement privée : accord du propriétaire nécessaire" : ""}</div></div>`;
-  L.popup({ maxWidth: 260, autoPanPaddingTopLeft: [10, 90], autoPanPaddingBottomRight: [10, 280] }).setLatLng(e.latlng).setContent(html).openOn(map);
+  $("#point-corps").innerHTML = h;
+  $("#point").classList.add("open");
+}
+function fermePoint() {
+  $("#point").classList.remove("open");
+  if (repere) { repere.remove(); repere = null; }
 }
 
 /* ---------- carte ---------- */
@@ -300,6 +404,7 @@ function initCarte() {
   L.control.layers({ "Plan IGN": plan, "Photos aériennes": ortho, "Topographique": topo }, null, { position: "topleft" }).addTo(map);
   map.attributionControl.setPrefix(false);
   map.on("click", detail);
+  $("#point-close").onclick = fermePoint;
   window._fonds = { plan, ortho, topo };
 
   fetch("data/forets_publiques.geojson").then((r) => r.json()).then((gj) => {
@@ -324,12 +429,12 @@ function controles() {
     state.mode = b.dataset.v;
     $("#days").style.display = state.mode === "pousse" && M ? "flex" : "none";
     $(".ramp").classList.toggle("hab", state.mode === "habitat");
-    map.closePopup();
+    fermePoint();
     dessine();
   }));
   especes();
   $("#chk-pub").onchange = majPub;
-  $("#chk-prive").onchange = (e) => { state.prive = e.target.checked; map.closePopup(); dessine(); };
+  $("#chk-prive").onchange = (e) => { state.prive = e.target.checked; fermePoint(); dessine(); };
   $("#btn-info").onclick = () => $("#panel").classList.add("open");
   $("#btn-close").onclick = () => $("#panel").classList.remove("open");
   let moi;

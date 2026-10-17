@@ -1,0 +1,52 @@
+{
+ "source": "Arrêtés préfectoraux 64-2026-05-11-00005 et -00007 (campagne 2026-2027), résumés par meschasses.com ; contacts sur les sites des mairies et de la FCSMP. À vérifier avant chaque sortie.",
+ "saison": {
+  "ouverture": "2026-09-13",
+  "fermeture": "2027-02-28",
+  "sanglier_plaine": "2027-05-31",
+  "sanglier_montagne": "2027-03-31"
+ },
+ "jours_courants": "Gibier de plaine, et chevreuil en zone de montagne : uniquement mercredi, samedi, dimanche et jours fériés. Les battues se concentrent sur ces jours.",
+ "palombe": {
+  "debut": "10-01",
+  "fin": "11-20"
+ },
+ "zones": [
+  {
+   "nom": "Ustaritz",
+   "lat": 43.388,
+   "lon": -1.47,
+   "rayon_km": 5,
+   "texte": "chasse organisée par l'ACCA d'Ustaritz ; aucun calendrier des battues publié. Contact via le pôle associations de la mairie.",
+   "lien": "https://www.ustaritz.fr/fileadmin/documents/Associations/Associations_sEPTEMBRE_2024.pdf",
+   "lien_texte": "Annuaire des associations"
+  },
+  {
+   "nom": "Saint-Pée-sur-Nivelle",
+   "lat": 43.358,
+   "lon": -1.544,
+   "rayon_km": 6,
+   "texte": "chasse organisée par l'ACCA Senpereko Ihiztariak ; pas de calendrier en ligne, contacts de l'ACCA sur le site de la mairie.",
+   "lien": "https://saintpeesurnivelle.fr/acca-senpereko-ihiztariak",
+   "lien_texte": "Page de l'ACCA"
+  },
+  {
+   "nom": "Iraty",
+   "lat": 43.045,
+   "lon": -1.06,
+   "rayon_km": 10,
+   "texte": "cols de chasse à la palombe attribués par les commissions syndicales (Soule, Cize) ; très fréquentés en octobre-novembre. Battues au sanglier en saison.",
+   "lien": "http://www.iraty.fr/",
+   "lien_texte": "Site d'Iraty"
+  },
+  {
+   "nom": "Bois de Mixe",
+   "lat": 43.427,
+   "lon": -1.128,
+   "rayon_km": 4,
+   "texte": "géré par la Commission syndicale du Bois de Mixe (21 communes) ; chasse à la palombe en automne, chevreuils régulés par battues.",
+   "lien": "https://www.montagnes-des-pyrenees.fr/pays-basque/bois-de-mixe-amikuzeko-oihana.html",
+   "lien_texte": "Fiche du bois de Mixe"
+  }
+ ]
+}
