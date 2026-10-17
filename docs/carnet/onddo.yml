@@ -1,0 +1,39 @@
+# Installé par l'appli Onddo dans votre dépôt privé. Ne contient aucune donnée.
+name: Onddo - alertes et apprentissage
+on:
+  schedule:
+    - cron: "47 4 * * *"   # chaque matin, après la mise à jour météo publique
+  push:
+    paths: ["carnet.enc"]  # à chaque nouvelle sortie enregistrée
+  workflow_dispatch:
+    inputs:
+      apprendre:
+        description: "Forcer le recalage sur vos sorties"
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency: { group: onddo, cancel-in-progress: false }
+jobs:
+  tache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: carnet }
+      - uses: actions/checkout@v4
+        with: { repository: Kauna64/onddo-app, path: public }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q numpy pillow cryptography pywebpush
+      - name: Alertes et apprentissage
+        env:
+          ONDDO_PHRASE: ${{ secrets.ONDDO_PHRASE }}
+        run: python public/carnet/tache.py --carnet carnet --public public ${{ inputs.apprendre && '--apprendre' || '' }}
+      - name: Enregistrer (chiffré)
+        working-directory: carnet
+        run: |
+          git config user.name "onddo-bot"; git config user.email "actions@users.noreply.github.com"
+          git add reglages.enc alertes.enc 2>/dev/null || true
+          git commit -m "Alertes et réglages du $(date +%F)" || exit 0
+          git pull --rebase && git push

@@ -103,6 +103,27 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 .pt-chasse{margin-top:8px;padding:9px 11px;border-radius:10px;background:#fbe3cc;color:#5a2b07;font-size:13.5px;line-height:1.4}
 .pt-chasse a{color:#9a4a1c}
 @media (prefers-color-scheme:dark){.pt-chasse{background:#4a2a10;color:#f7dcc2}.pt-chasse a{color:#f0a26a}}
+.fab.actif{background:var(--accent);color:var(--accent-ink)}
+.fab-ajout{position:fixed;right:14px;bottom:calc(var(--sheet-h,200px) + 12px);z-index:1100;width:54px;height:54px;border-radius:50%;border:0;
+  background:var(--accent);color:var(--accent-ink);font-size:30px;line-height:1;box-shadow:0 4px 14px #0005}
+.panel h2{margin-right:90px}
+.champ{display:block;margin:10px 0;font-size:13px;color:var(--muted)}
+.champ input:not([type=checkbox]):not([type=range]),.champ select,.champ textarea{display:block;width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+.champ input[type=range]{width:100%}
+.seg-qte{flex-wrap:wrap;margin-top:4px}.seg-qte button{flex:1 1 45%;font-size:13px}
+.petit{font-size:13px}.chip.petit{font-size:12px;padding:5px 9px}
+.onglets{flex-wrap:wrap;overflow:visible}
+.liste{list-style:none;padding:0;margin:8px 0}
+.liste li{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.pastille{flex:0 0 14px;height:14px;border-radius:50%;margin-top:3px;border:1.5px solid #777}
+.coin{border:1px solid var(--line);border-radius:12px;padding:10px;margin:10px 0}
+.coin .c-nom{flex:1;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+.coin-icone{color:#ffd23f;font-size:22px;line-height:26px;text-align:center;text-shadow:0 0 3px #000,0 0 2px #000}
+.coin-icone.suivi{color:#ff8a1f}
+.pt-actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.photo{max-width:100%;border-radius:10px;margin-top:6px}
+code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
 </style>
 </head>
 <body>
@@ -111,6 +132,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 <div class="top">
   <div class="brand"><img src="icons/icon-192.png" alt="" class="logo"><div>Onddo<small id="maj">Pyrénées-Atlantiques</small></div></div>
   <div class="spacer"></div>
+  <button class="fab" id="btn-carnet" aria-label="Mon carnet">📓</button>
   <button class="fab" id="btn-gps" aria-label="Me localiser">◎</button>
   <button class="fab" id="btn-info" aria-label="Informations">i</button>
 </div>
@@ -133,7 +155,17 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
   <div class="status" id="status">Chargement…</div>
 </div>
 
+<button class="fab-ajout" id="btn-ajout" aria-label="Noter une sortie">＋</button>
 <div class="toast" id="toast"></div>
+
+<div class="panel" id="carnet">
+  <button class="btn ghost close" id="carnet-fermer">Fermer</button>
+  <div id="carnet-corps"></div>
+</div>
+<div class="panel" id="ajout">
+  <button class="btn ghost close" id="ajout-fermer">Annuler</button>
+  <div id="ajout-corps"></div>
+</div>
 
 <div class="point" id="point">
   <div class="pt-tete"><span class="poignee"></span><button class="btn ghost" id="point-close">Fermer</button></div>
@@ -184,6 +216,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="indice.js"></script>
+<script src="carnet.js"></script>
 <script src="app.js"></script>
+<script src="carnet-ui.js"></script>
 </body>
 </html>

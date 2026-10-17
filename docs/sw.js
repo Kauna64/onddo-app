@@ -1,8 +1,8 @@
 /* Service worker : fonctionnement sans réseau */
-const VERSION = "onddo-v4";
+const VERSION = "onddo-v5";
 const COQUILLE = ["./", "index.html", "app.js", "manifest.webmanifest", "icons/icon-192.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "indice.js", "data/grid.json", "data/especes.json", "data/chasse.json", "data/habitat.png", "data/forets_publiques.geojson"];
+  "indice.js", "carnet.js", "carnet-ui.js", "carnet/onddo.yml", "data/grid.json", "data/especes.json", "data/chasse.json", "data/habitat.png", "data/forets_publiques.geojson"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COQUILLE)).then(() => self.skipWaiting()));
@@ -14,11 +14,29 @@ self.addEventListener("activate", (e) => {
 
 // les sous-domaines a/b/c d'OpenTopoMap servent les mêmes tuiles
 const cle = (url) => url.replace(/\/\/[abc]\.tile\.opentopomap/, "//a.tile.opentopomap");
+// notifications d'alerte envoyées par votre dépôt privé
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data.json(); } catch (_) { d = { title: "Onddo", body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Onddo", {
+    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/icon-192.png", tag: `${d.coin || ""}:${d.esp || ""}`,
+    data: { url: d.coin ? `./?coin=${encodeURIComponent(d.coin)}` : "./" },
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data.url, self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: "window" }).then((cs) => {
+    for (const c of cs) if ("navigate" in c) return c.navigate(url).then((w) => w && w.focus());
+    return self.clients.openWindow(url);
+  }));
+});
+
 const estTuile = (url) => url.includes("data.geopf.fr/wmts") || url.includes("tile.opentopomap.org");
 
 self.addEventListener("fetch", (e) => {
   const url = e.request.url;
-  if (e.request.method !== "GET") return;
+  if (e.request.method !== "GET" || url.startsWith("https://api.github.com")) return;
   // météo : réseau d'abord, copie locale si pas de réseau
   if (/\/data\/(meteo|especes|grid|chasse)\.json|\/data\/habitat\.png/.test(url)) {
     e.respondWith(fetch(e.request).then((r) => {

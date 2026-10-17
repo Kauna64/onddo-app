@@ -48,3 +48,11 @@ function calculIndice(P, Tm, Tn, E, mois, e, dT, detail) {
 }
 
 if (typeof module !== "undefined") module.exports = { calculIndice };
+
+/* Réglage personnel appris sur vos sorties (dépôt privé) : décalage de température et facteur sur la pluie */
+function ajusteParams(e, adj) {
+  if (!adj || (!adj.dT && (adj.k || 1) === 1)) return e;
+  return { ...e, t: e.t.map((x) => x + (adj.dT || 0)), seuil: e.seuil * (adj.k || 1), plage: e.plage * (adj.k || 1) };
+}
+const secteurDe = (alt) => (alt < 300 ? "cote" : alt < 900 ? "piemont" : "montagne");
+if (typeof module !== "undefined") module.exports.ajusteParams = ajusteParams;

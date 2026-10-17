@@ -27,9 +27,23 @@ def bouche_trous(x):
         if np.isnan(x[i]): x[i] = x[i - 1]
     return x
 
-def indice(P, Tm, Tn, ET0, mois, espece, dT=0.0):
-    """Indice jour par jour. dT : correction de température pour l'altitude visée (°C)."""
-    e = ESPECES[espece]
+def ajuste(e, adj):
+    """Applique un réglage personnel appris sur vos sorties : décalage de température et facteur sur la pluie."""
+    if not adj:
+        return e
+    e = dict(e)
+    e["t"] = [x + adj.get("dT", 0) for x in e["t"]]
+    e["seuil"] = e["seuil"] * adj.get("k", 1)
+    e["plage"] = e["plage"] * adj.get("k", 1)
+    return e
+
+def secteur(alt):
+    return "cote" if alt < 300 else "piemont" if alt < 900 else "montagne"
+
+def indice(P, Tm, Tn, ET0, mois, espece, dT=0.0, params=None):
+    """Indice jour par jour. dT : correction de température pour l'altitude visée (°C).
+    params : paramètres météo de l'espèce déjà ajustés (sinon ceux de especes.json)."""
+    e = params or ESPECES[espece]
     P, ET0 = np.nan_to_num(np.asarray(P, float)), bouche_trous(ET0)
     Tm, Tn = bouche_trous(Tm) + dT, bouche_trous(Tn) + dT
     ET0 = np.nan_to_num(ET0) * np.clip(1 + dT * 0.04, 0.5, 1.5)  # plus frais en altitude : moins d'évaporation

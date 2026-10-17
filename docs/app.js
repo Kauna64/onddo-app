@@ -93,13 +93,19 @@ function indiceMeteo(lat, lon, alt, jour, esp) {
 // indice calculé dans l'appli (indice.js) pour chaque point météo, à chaque altitude de référence
 function decode(esp) {
   if (IDX[esp]) return IDX[esp];
-  const L = M.niveaux, nL = L.length, nJ = M.jours.length, e = E.especes[esp].meteo;
+  const L = M.niveaux, nL = L.length, nJ = M.jours.length, e0 = E.especes[esp].meteo;
+  const eNiv = L.map((lv) => ajusteParams(e0, reglagePour(esp, lv)));
   const a = new Float32Array(M.points.length * nL * nJ);
   M.points.forEach((pt, n) => L.forEach((lv, k) => {
-    const r = calculIndice(pt.p, pt.tm, pt.tn, pt.e, M.mois, e, GRAD * (lv - pt.alt), false);
+    const r = calculIndice(pt.p, pt.tm, pt.tn, pt.e, M.mois, eNiv[k], GRAD * (lv - pt.alt), false);
     for (let j = 0; j < nJ; j++) a[(n * nL + k) * nJ + j] = r[M.j0 + j] || 0;
   }));
   return (IDX[esp] = a);
+}
+// réglage appris sur vos sorties (disponible quand le carnet est ouvert)
+function reglagePour(esp, alt) {
+  const r = typeof Carnet !== "undefined" && Carnet.reglages && Carnet.reglages.reglages && Carnet.reglages.reglages[esp];
+  return r ? r[secteurDe(alt)] || r["*"] || null : null;
 }
 function valNiveau(n, alt, jour, esp) {
   const L = M.niveaux, nL = L.length, nJ = M.jours.length, T = decode(esp);
@@ -321,10 +327,13 @@ function detail(e) {
   const ll = e.latlng, px = pixel(ll);
   if (!px) return;
   if (repere) repere.setLatLng(ll); else repere = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b2118", fillOpacity: 1 }).addTo(map);
-  const sp = E.especes[state.esp], em = sp.meteo;
+  const sp = E.especes[state.esp];
+  let em = sp.meteo;
   const hab = px.code >= 4 ? LUT[state.esp][px.code] * px.rel / 250 : 0;
   const alt = M || px.b >> 1 ? Math.round(altPixel(px.b, ll.lat, ll.lng)) : null;
   const nom = foretPublique(ll);
+  const adj = alt !== null ? reglagePour(state.esp, alt) : null;
+  if (adj) em = ajusteParams(em, adj);
   let h = `<div class="pt-titre">${sp.nom}</div>`;
   const raisons = [];
 
@@ -359,6 +368,8 @@ function detail(e) {
       raisons.push(ligne(d.temp, "Température du sol",
         `${f1(d.tsol)} °C estimés à ${alt} m sur 10 jours ; idéal ${t1}-${t2} °C, rien sous ${t0} ou au-dessus de ${t3} °C${d.tsol > t2 ? " : trop chaud" : d.tsol < t1 ? " : trop froid" : ""}.`));
       raisons.push(ligne(d.gel, "Gel", d.tmin < 0.5 ? `Gelée le ${dateCourte(M.dates[d.jgel])} (${f1(d.tmin)} °C) : les poussées sont freinées.` : `Aucune gelée ces 5 derniers jours (minimum ${f1(d.tmin)} °C).`));
+      if (adj && (adj.dT || adj.k !== 1))
+        raisons.push(ligne(1, "Réglage appris sur vos sorties", `${adj.dT ? `températures idéales décalées de ${adj.dT > 0 ? "+" : ""}${adj.dT} °C` : ""}${adj.dT && adj.k !== 1 ? ", " : ""}${adj.k !== 1 ? `besoin en pluie ×${f1(adj.k)}` : ""} (${adj.n} récoltes, ${adj.n_vides} sorties vides).`));
       raisons.push(ligne(d.saison, "Saison", `${sp.periode} ; ${d.saison >= 0.8 ? "pleine saison" : d.saison >= 0.4 ? "début ou fin de saison" : "hors saison habituelle"}.`));
       if (d.persiste > d.brut + 0.05 && d.debut >= 0)
         raisons.push(ligne(d.persiste, "Poussée en cours", `Conditions réunies vers le ${dateCourte(M.dates[d.debut])} ; la poussée se poursuit en s'atténuant.`));
@@ -384,7 +395,9 @@ function detail(e) {
     if (z) t += `<br><b>${z.nom}</b> : ${z.texte} <a href="${z.lien}" target="_blank" rel="noopener">${z.lien_texte}</a>`;
     h += `<div class="pt-chasse">${t}</div>`;
   }
+  h += `<div class="pt-actions"><button class="btn" id="pt-noter">Noter une sortie ici</button></div>`;
   $("#point-corps").innerHTML = h;
+  $("#pt-noter").onclick = () => window.ouvreAjout && ouvreAjout(ll);
   $("#point").classList.add("open");
 }
 function fermePoint() {
@@ -490,6 +503,7 @@ async function horsLigne() {
   try {
     await charge();
     initCarte(); controles(); jours(); dessine();
+    if (window.initCarnetUI) initCarnetUI();
   } catch (e) {
     $("#status").textContent = "Erreur de chargement : " + e.message;
     throw e;
