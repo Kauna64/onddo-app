@@ -16,7 +16,7 @@ import json, os
 _CFG = json.load(open(os.path.join(os.path.dirname(__file__), "..", "docs", "data", "especes.json"), encoding="utf-8"))
 ESPECES = {k: v["meteo"] for k, v in _CFG["especes"].items()}
 NIVEAUX = [100, 400, 700, 1000, 1300, 1600]  # altitudes (m) pour lesquelles l'indice est calculé
-RESERVE = 60.0                                # réserve utile du sol forestier (mm)
+RESERVE = 100.0                                # réserve utile du sol forestier (mm)
 
 def trapeze(x, a, b, c, d):
     return np.clip(np.minimum((x - a) / (b - a), (d - x) / (d - c)), 0, 1)

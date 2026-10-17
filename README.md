@@ -28,4 +28,4 @@ python scripts/build_relief.py
 ```
 
 ## Chasse
-`docs/data/chasse.json` : dates de la campagne 2026-2027, jours de chasse courants et contacts locales (Ustaritz, Saint-Pée, Iraty, bois de Mixe). Aucun calendrier de battues n'est publié en ligne par ces communes : à mettre à jour chaque saison.
+`docs/data/chasse.json` : dates de la campagne 2026-2027, jours de chasse courants et contacts locaux (Ustaritz, Saint-Pée, Iraty, bois de Mixe). Aucun calendrier de battues n'est publié en ligne par ces communes : à mettre à jour chaque saison.

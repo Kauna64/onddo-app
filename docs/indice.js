@@ -1,7 +1,7 @@
 /* Indice de pousse : même calcul que scripts/indice.py (qui sert au calage), avec le détail de chaque facteur.
    pousse = pluie déclenchante × humidité du sol × température du sol × gel, avec persistance, × saison */
 "use strict";
-const RESERVE = 60; // réserve utile du sol forestier (mm)
+const RESERVE = 100; // réserve utile du sol forestier (mm)
 
 function trapeze(x, a, b, c, d) {
   return Math.min(Math.max(Math.min((x - a) / (b - a), (d - x) / (d - c)), 0), 1);

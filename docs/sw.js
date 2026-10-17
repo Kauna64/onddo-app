@@ -1,5 +1,5 @@
 /* Service worker : fonctionnement sans réseau */
-const VERSION = "onddo-v3";
+const VERSION = "onddo-v4";
 const COQUILLE = ["./", "index.html", "app.js", "manifest.webmanifest", "icons/icon-192.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
   "indice.js", "data/grid.json", "data/especes.json", "data/chasse.json", "data/habitat.png", "data/forets_publiques.geojson"];
