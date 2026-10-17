@@ -1,0 +1,21 @@
+name: Relief (une fois)
+on: { workflow_dispatch: {} }
+permissions:
+  contents: write
+concurrency: { group: donnees, cancel-in-progress: false }
+jobs:
+  relief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install numpy rasterio pillow
+      - run: python scripts/build_relief.py
+      - name: Publier
+        run: |
+          git config user.name "onddo-bot"; git config user.email "actions@users.noreply.github.com"
+          git add docs/data/habitat.png docs/data/grid.json
+          git commit -m "Relief ajouté à la carte des habitats" || exit 0
+          git pull --rebase && git push
