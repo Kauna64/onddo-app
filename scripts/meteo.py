@@ -40,7 +40,11 @@ def appel(lats, lons):
                 d = json.load(r)
                 return d if isinstance(d, list) else [d]
         except urllib.error.HTTPError as e:
-            print("  erreur", e.code, e.read()[:200], "- nouvel essai dans 2 min", flush=True); time.sleep(120)
+            msg = f"HTTP {e.code} {e.read()[:300]!r}"
+        except Exception as e:  # coupure réseau, délai dépassé…
+            msg = repr(e)
+        print(f"::warning::Open-Meteo, essai {essai + 1} : {msg}", flush=True)
+        time.sleep(120)
     raise RuntimeError("Open-Meteo injoignable")
 
 def main():
@@ -77,4 +81,10 @@ def main():
 
 GRAD = -0.0065
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        # les annotations « ::error:: » restent lisibles dans l'onglet Actions
+        print("::error::" + traceback.format_exc().replace("\n", "%0A"), flush=True)
+        raise
