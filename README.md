@@ -1,11 +1,13 @@
 # Onddo
 
-Carte de pousse des cèpes et des girolles dans les Pyrénées-Atlantiques, consultable sur téléphone.
+Carte de pousse de sept champignons dans les Pyrénées-Atlantiques, consultable sur téléphone : cèpe de Bordeaux, tête de nègre, cèpe d'été, cèpe des pins, girolle, pied de mouton, trompette de la mort.
+
+Les réglages de chaque espèce (arbres, sols, délai après la pluie, températures, saison) sont dans `docs/data/especes.json`.
 
 **Application : https://kauna64.github.io/onddo-app/** (une fois GitHub Pages activé)
 
 ## Fonctionnement
-- **Carte fixe des habitats** (`build/habitat_base.npz`, `docs/data/habitat.png`) : essences forestières (BD Forêt V2, IGN),
+- **Carte fixe des milieux** (`build/habitat_base.npz`, `docs/data/habitat.png`) : type de forêt (BD Forêt V2, IGN),
   acidité du sol (BD Charm-50, BRGM), forêts publiques (ONF), pente et altitude (Copernicus DEM 30 m). Pixel de 50 m.
 - **Météo quotidienne** (`docs/data/meteo.json`) : 464 points Open-Meteo (pas de 0,05°) sur les forêts du département,
   45 jours d'historique et 9 jours de prévision. L'indice de pousse (`scripts/indice.py`) est calculé pour 6 altitudes,

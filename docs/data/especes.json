@@ -1,0 +1,533 @@
+{
+ "milieux": [
+  "Hors forêt",
+  "Hêtraie",
+  "Chênaie",
+  "Châtaigneraie",
+  "Feuillus mélangés",
+  "Feuillus en îlots",
+  "Autres feuillus",
+  "Robinier",
+  "Mixte à feuillus dominants",
+  "Mixte à conifères dominants",
+  "Sapinière, pessière",
+  "Pin maritime",
+  "Pins (sylvestre, à crochets…)",
+  "Pin noir, laricio",
+  "Autres conifères",
+  "Douglas",
+  "Mélèze",
+  "Forêt claire de feuillus",
+  "Forêt claire de conifères",
+  "Forêt claire mixte",
+  "Coupe, sans couvert",
+  "Peupleraie"
+ ],
+ "sols": [
+  "Sol inconnu",
+  "Sol acide",
+  "Sol neutre",
+  "Sol calcaire"
+ ],
+ "ordre": [
+  "edulis",
+  "aereus",
+  "aestivalis",
+  "pinophilus",
+  "girolle",
+  "hydnum",
+  "trompette"
+ ],
+ "especes": {
+  "edulis": {
+   "nom": "Cèpe de Bordeaux",
+   "groupe": "Cèpes",
+   "latin": "Boletus edulis",
+   "arbres": "Hêtre, sapin, chênes, châtaignier",
+   "periode": "Fin août à novembre",
+   "note": "Le plus courant ; de la plaine à la montagne. Seule espèce calée sur des récoltes réelles (Iraty).",
+   "essences": [
+    0,
+    1,
+    0.9,
+    0.9,
+    0.85,
+    0.7,
+    0.4,
+    0.05,
+    0.95,
+    0.9,
+    1,
+    0.5,
+    0.6,
+    0.4,
+    0.6,
+    0.4,
+    0.3,
+    0.6,
+    0.5,
+    0.6,
+    0.15,
+    0.05
+   ],
+   "sols": [
+    0.85,
+    1,
+    0.85,
+    0.6
+   ],
+   "meteo": {
+    "lag": [
+     4,
+     9,
+     16,
+     24
+    ],
+    "seuil": 15,
+    "plage": 50,
+    "t": [
+     6,
+     10,
+     17,
+     22
+    ],
+    "persist": 0.85,
+    "humide_min": 0.3,
+    "saison": [
+     0.02,
+     0.02,
+     0.05,
+     0.15,
+     0.4,
+     0.55,
+     0.55,
+     0.75,
+     1,
+     1,
+     0.85,
+     0.3
+    ]
+   }
+  },
+  "aereus": {
+   "nom": "Tête de nègre",
+   "groupe": "Cèpes",
+   "latin": "Boletus aereus",
+   "arbres": "Chênes, châtaignier",
+   "periode": "Juillet à octobre",
+   "note": "Aime la chaleur : surtout en basse altitude, piémont et Pays basque.",
+   "essences": [
+    0,
+    0.3,
+    1,
+    1,
+    0.75,
+    0.65,
+    0.5,
+    0.05,
+    0.6,
+    0.3,
+    0,
+    0.3,
+    0.1,
+    0,
+    0,
+    0,
+    0,
+    0.7,
+    0,
+    0.5,
+    0.1,
+    0
+   ],
+   "sols": [
+    0.85,
+    1,
+    0.85,
+    0.55
+   ],
+   "meteo": {
+    "lag": [
+     4,
+     8,
+     14,
+     20
+    ],
+    "seuil": 15,
+    "plage": 45,
+    "t": [
+     12,
+     16,
+     23,
+     28
+    ],
+    "persist": 0.8,
+    "humide_min": 0.3,
+    "saison": [
+     0,
+     0,
+     0,
+     0.05,
+     0.2,
+     0.6,
+     0.9,
+     1,
+     1,
+     0.8,
+     0.4,
+     0.05
+    ]
+   }
+  },
+  "aestivalis": {
+   "nom": "Cèpe d'été",
+   "groupe": "Cèpes",
+   "latin": "Boletus aestivalis (reticulatus)",
+   "arbres": "Chênes, hêtre, châtaignier",
+   "periode": "Mai à septembre",
+   "note": "Le plus précoce ; supporte les sols calcaires.",
+   "essences": [
+    0,
+    0.9,
+    1,
+    0.85,
+    0.85,
+    0.7,
+    0.4,
+    0.05,
+    0.8,
+    0.5,
+    0.2,
+    0.1,
+    0.1,
+    0,
+    0,
+    0,
+    0,
+    0.7,
+    0,
+    0.5,
+    0.1,
+    0
+   ],
+   "sols": [
+    0.9,
+    0.85,
+    1,
+    0.9
+   ],
+   "meteo": {
+    "lag": [
+     4,
+     8,
+     14,
+     20
+    ],
+    "seuil": 12,
+    "plage": 45,
+    "t": [
+     10,
+     14,
+     21,
+     26
+    ],
+    "persist": 0.8,
+    "humide_min": 0.3,
+    "saison": [
+     0,
+     0,
+     0,
+     0.2,
+     0.8,
+     1,
+     0.9,
+     0.8,
+     0.6,
+     0.3,
+     0.1,
+     0
+    ]
+   }
+  },
+  "pinophilus": {
+   "nom": "Cèpe des pins",
+   "groupe": "Cèpes",
+   "latin": "Boletus pinophilus",
+   "arbres": "Pins, sapin, épicéa",
+   "periode": "Septembre à novembre",
+   "note": "Sols acides, souvent en altitude.",
+   "essences": [
+    0,
+    0.3,
+    0.3,
+    0.4,
+    0.25,
+    0.2,
+    0,
+    0,
+    0.5,
+    0.9,
+    0.85,
+    0.9,
+    1,
+    0.6,
+    0.7,
+    0.5,
+    0.4,
+    0.2,
+    0.7,
+    0.5,
+    0.1,
+    0
+   ],
+   "sols": [
+    0.75,
+    1,
+    0.7,
+    0.35
+   ],
+   "meteo": {
+    "lag": [
+     4,
+     9,
+     16,
+     24
+    ],
+    "seuil": 15,
+    "plage": 50,
+    "t": [
+     5,
+     9,
+     16,
+     21
+    ],
+    "persist": 0.85,
+    "humide_min": 0.3,
+    "saison": [
+     0.02,
+     0.02,
+     0.05,
+     0.1,
+     0.3,
+     0.4,
+     0.4,
+     0.6,
+     0.9,
+     1,
+     0.9,
+     0.4
+    ]
+   }
+  },
+  "girolle": {
+   "nom": "Girolle",
+   "groupe": "Autres",
+   "latin": "Cantharellus cibarius",
+   "arbres": "Chênes, châtaignier, hêtre, aussi résineux",
+   "periode": "Juin à octobre",
+   "note": "Pousse par vagues successives et reste longtemps en place.",
+   "essences": [
+    0,
+    0.95,
+    1,
+    1,
+    0.85,
+    0.75,
+    0.5,
+    0.05,
+    0.85,
+    0.75,
+    0.7,
+    0.5,
+    0.55,
+    0.4,
+    0.45,
+    0.3,
+    0.25,
+    0.6,
+    0.4,
+    0.55,
+    0.2,
+    0.05
+   ],
+   "sols": [
+    0.8,
+    1,
+    0.7,
+    0.45
+   ],
+   "meteo": {
+    "lag": [
+     6,
+     12,
+     20,
+     30
+    ],
+    "seuil": 15,
+    "plage": 50,
+    "t": [
+     9,
+     13,
+     21,
+     26
+    ],
+    "persist": 0.9,
+    "humide_min": 0.3,
+    "saison": [
+     0,
+     0,
+     0,
+     0.1,
+     0.4,
+     0.8,
+     0.9,
+     0.9,
+     1,
+     0.9,
+     0.6,
+     0.15
+    ]
+   }
+  },
+  "hydnum": {
+   "nom": "Pied de mouton",
+   "groupe": "Autres",
+   "latin": "Hydnum repandum",
+   "arbres": "Feuillus et résineux, tous sols",
+   "periode": "Septembre à décembre",
+   "note": "Tardif, résiste au froid et dure longtemps.",
+   "essences": [
+    0,
+    1,
+    0.9,
+    0.8,
+    0.9,
+    0.7,
+    0.5,
+    0.1,
+    0.95,
+    0.9,
+    1,
+    0.6,
+    0.7,
+    0.6,
+    0.7,
+    0.6,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.15,
+    0.1
+   ],
+   "sols": [
+    0.95,
+    0.9,
+    1,
+    0.95
+   ],
+   "meteo": {
+    "lag": [
+     6,
+     12,
+     20,
+     30
+    ],
+    "seuil": 15,
+    "plage": 45,
+    "t": [
+     4,
+     8,
+     15,
+     20
+    ],
+    "persist": 0.93,
+    "humide_min": 0.3,
+    "saison": [
+     0.1,
+     0.05,
+     0,
+     0,
+     0,
+     0.05,
+     0.1,
+     0.3,
+     0.7,
+     1,
+     1,
+     0.6
+    ]
+   }
+  },
+  "trompette": {
+   "nom": "Trompette de la mort",
+   "groupe": "Autres",
+   "latin": "Craterellus cornucopioides",
+   "arbres": "Hêtre surtout, chênes",
+   "periode": "Août à novembre",
+   "note": "Sols argileux ou calcaires, frais et humides : creux, bords de ruisseaux, hêtraies denses.",
+   "essences": [
+    0,
+    1,
+    0.85,
+    0.6,
+    0.9,
+    0.6,
+    0.4,
+    0.05,
+    0.85,
+    0.5,
+    0.45,
+    0.05,
+    0.1,
+    0,
+    0,
+    0,
+    0,
+    0.3,
+    0,
+    0.3,
+    0.05,
+    0
+   ],
+   "sols": [
+    0.85,
+    0.7,
+    1,
+    0.95
+   ],
+   "meteo": {
+    "lag": [
+     7,
+     14,
+     22,
+     32
+    ],
+    "seuil": 20,
+    "plage": 60,
+    "t": [
+     6,
+     10,
+     17,
+     22
+    ],
+    "persist": 0.92,
+    "humide_min": 0.1,
+    "saison": [
+     0,
+     0,
+     0,
+     0,
+     0.05,
+     0.2,
+     0.4,
+     0.7,
+     0.9,
+     1,
+     1,
+     0.5
+    ]
+   }
+  }
+ }
+}

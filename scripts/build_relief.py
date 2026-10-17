@@ -1,8 +1,9 @@
 """Ajoute le relief (Copernicus DEM 30 m) aux couches d'habitat et écrit docs/data/habitat.png.
 
 Canaux du PNG (pixel de 50 m, Web Mercator) :
-  R = score d'habitat cèpes (0-250)    G = score d'habitat girolles (0-250)
-  B = (altitude // 24) * 2 + forêt publique (0/1) ; altitude 0 = inconnue
+  R = milieu * 4 + sol        (milieu et sol : voir docs/data/especes.json ; 0 = hors forêt)
+  G = facteur de relief 0-250 (pente forte ou altitude au-dessus de la forêt productive)
+  B = (altitude // 24 + 1) * 2 + forêt publique (0/1) ; altitude 0 = inconnue
 """
 import argparse, json, os, sys, urllib.request
 import numpy as np
@@ -37,8 +38,9 @@ def main():
     ap.add_argument("--cache", default="/tmp/dem"); a = ap.parse_args()
     grid = json.load(open("docs/data/grid.json"))
     b = np.load("build/habitat_base.npz")
-    ce, gi, pub = b["cepes"].astype(np.float32), b["girolles"].astype(np.float32), b["public"]
-    alt = np.zeros(ce.shape, dtype=np.uint8)
+    milieu, sol, pub = b["milieu"], b["sol"], b["public"]
+    rel = np.full(milieu.shape, 250.0)
+    alt = np.zeros(milieu.shape, dtype=np.uint8)
     if not a.no_dem:
         dem, px = load_dem(grid, a.cache)
         ok = ~np.isnan(dem)
@@ -49,12 +51,14 @@ def main():
         f = np.clip(1 - (slope - 35) / 20, 0.3, 1)
         # Au-dessus de 1900 m il n'y a plus de forêt productive
         f *= np.clip(1 - (np.nan_to_num(dem) - 1900) / 200, 0, 1)
-        ce, gi = ce * f, gi * f
+        rel *= f
         alt = np.where(ok, np.clip(dem // 24 + 1, 1, 127), 0).astype(np.uint8)
         grid["dem"] = "Copernicus GLO-30"
-    B = (alt.astype(np.uint16) * 2 + pub).astype(np.uint8)
-    B[(ce < 1) & (gi < 1)] = 0  # hors forêt : inutile, et le PNG se compresse mieux
-    img = np.dstack([ce.round().astype(np.uint8), gi.round().astype(np.uint8), B])
+    foret = milieu > 0
+    R = np.where(foret, milieu.astype(np.uint16) * 4 + sol, 0).astype(np.uint8)
+    G = np.where(foret, rel.round(), 0).astype(np.uint8)
+    B = np.where(foret, alt.astype(np.uint16) * 2 + pub, 0).astype(np.uint8)
+    img = np.dstack([R, G, B])
     Image.fromarray(img, "RGB").save("docs/data/habitat.png", optimize=True)
     json.dump(grid, open("docs/data/grid.json", "w"), indent=1)
     print("habitat.png", os.path.getsize("docs/data/habitat.png") // 1024, "Ko")

@@ -8,10 +8,15 @@ NLAT, NLON = 19, 38
 PASSE, FUTUR, AFFICHE = 45, 9, 7  # jours d'historique pour le bilan d'eau, de prévision, affichés de chaque côté
 DAILY = "precipitation_sum,temperature_2m_mean,temperature_2m_min,et0_fao_evapotranspiration"
 
+# Chaque valeur d'indice (0-1) est codée sur un caractère (pas de 0,02) pour alléger le fichier
+ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno"
+def code(serie):
+    return "".join(ALPHABET[int(round(50 * min(max(x, 0), 1)))] if not np.isnan(x) else "0" for x in serie)
+
 def points_actifs():
     """Garde les nœuds de la grille proches d'une forêt."""
     g = json.load(open("docs/data/grid.json"))
-    hab = np.load("build/habitat_base.npz")["cepes"] > 0
+    hab = np.load("build/habitat_base.npz")["milieu"] > 0
     (la0, lo0), (la1, lo1) = g["bounds"]
     H, W = hab.shape
     # projection mercator -> lignes
@@ -62,15 +67,14 @@ def main():
     out = {"genere": dt.datetime.now(dt.timezone.utc).isoformat(timespec="minutes"),
            "jours": dates[sel], "aujourdhui": AFFICHE, "niveaux": NIVEAUX,
            "grille": {"lat0": LAT0, "lon0": LON0, "dlat": DLAT, "dlon": DLON, "nlat": NLAT, "nlon": NLON},
-           "points": [], "cepes": [], "girolles": []}
+           "alphabet": ALPHABET, "points": [], "especes": list(ESPECES), "indice": {e: [] for e in ESPECES}}
     for p, r in zip(pts, res):
         d = r["daily"]
         P, Tm, Tn, E = (np.array(d[v], dtype=float) for v in DAILY.split(","))
         Tm = np.where(np.isnan(Tm), Tn + 5, Tm)  # trous comblés ensuite dans indice()
         alt = r.get("elevation", 0) or 0
         for esp in ESPECES:
-            out[esp].append([[int(round(100 * x)) if not np.isnan(x) else 0
-                              for x in indice(P, Tm, Tn, E, mois, esp, GRAD * (lv - alt))[sel]] for lv in NIVEAUX])
+            out["indice"][esp].append([code(indice(P, Tm, Tn, E, mois, esp, GRAD * (lv - alt))[sel]) for lv in NIVEAUX])
         out["points"].append({"i": p[0], "j": p[1], "lat": p[2], "lon": p[3], "alt": round(alt),
                               "pluie15": round(float(np.nansum(P[auj - 14:auj + 1])), 1),
                               "pluie7f": round(float(np.nansum(P[auj + 1:auj + 8])), 1),

@@ -5,7 +5,7 @@ Entrées (fichiers téléchargés à la main, non versionnés) :
   --geol     GEO050K_HARM_064_S_FGEOL_2154.shp (BD Charm-50, BRGM)
   --pub      for_publ_fr.shp (forêts publiques, ONF)
 Sorties :
-  build/habitat_base.npz           scores cèpes / girolles + masque forêt publique (grille 50 m, EPSG:3857)
+  build/habitat_base.npz           milieu forestier, type de sol, masque forêt publique (grille 50 m, EPSG:3857)
   docs/data/forets_publiques.geojson
   docs/data/grid.json              géométrie de la grille
 """
@@ -16,32 +16,13 @@ from rasterio.transform import from_origin
 
 RES = 50.0  # taille du pixel au sol (m)
 
-# Score d'habitat par code BD Forêt : (cèpes, girolles) entre 0 et 1
-ESSENCE = {
-    "FF1-09-09": (1.00, 0.95),  # hêtre
-    "FF1G01-01": (1.00, 1.00),  # chênes décidus
-    "FF1-10-10": (1.00, 1.00),  # châtaignier
-    "FF1-00-00": (0.85, 0.85),  # mélange de feuillus
-    "FF1-00":    (0.75, 0.75),  # feuillus en îlots
-    "FF1-49-49": (0.50, 0.50),  # autre feuillu pur
-    "FF1-14-14": (0.10, 0.10),  # robinier
-    "FF1G06-06": (0.30, 0.30),  # chênes sempervirents
-    "FF31":      (0.90, 0.85),  # mixte à feuillus prépondérants
-    "FF32":      (0.85, 0.75),  # mixte à conifères prépondérants
-    "FF2G61-61": (0.85, 0.70),  # sapin, épicéa
-    "FF2-51-51": (0.70, 0.50),  # pin maritime
-    "FF2-52-52": (0.70, 0.55),  # pin sylvestre
-    "FF2G53-53": (0.55, 0.40),  # pin laricio / noir
-    "FF2G58-58": (0.50, 0.40),  # pin à crochets
-    "FF2-80-80": (0.60, 0.45), "FF2-81-81": (0.60, 0.45),
-    "FF2-00-00": (0.55, 0.45), "FF2-00": (0.50, 0.40),
-    "FF2-90-90": (0.45, 0.35), "FF2-91-91": (0.45, 0.35),
-    "FF2-64-64": (0.40, 0.30),  # douglas
-    "FF2-63-63": (0.35, 0.25),  # mélèze
-    "FO1":       (0.65, 0.60),  # forêt ouverte de feuillus (lisières, clairières)
-    "FO3":       (0.60, 0.55), "FO2": (0.50, 0.40),
-    "FF0":       (0.20, 0.20), "FO0": (0.10, 0.10),
-    "FP":        (0.05, 0.05),  # peupleraie
+# Code BD Forêt -> numéro de milieu (voir « milieux » dans docs/data/especes.json)
+MILIEU = {
+    "FF1-09-09": 1, "FF1G01-01": 2, "FF1-10-10": 3, "FF1-00-00": 4, "FF1-00": 5,
+    "FF1-49-49": 6, "FF1G06-06": 6, "FF1-14-14": 7, "FF31": 8, "FF32": 9,
+    "FF2G61-61": 10, "FF2-51-51": 11, "FF2-52-52": 12, "FF2-80-80": 12, "FF2-81-81": 12, "FF2G58-58": 12,
+    "FF2G53-53": 13, "FF2-00-00": 14, "FF2-00": 14, "FF2-90-90": 14, "FF2-91-91": 14,
+    "FF2-64-64": 15, "FF2-63-63": 16, "FO1": 17, "FO2": 18, "FO3": 19, "FF0": 20, "FO0": 20, "FP": 21,
 }
 
 def geol_class(descr: str) -> str:
@@ -61,7 +42,6 @@ def geol_class(descr: str) -> str:
         return "acide"
     return "neutre"
 
-GEOL = {"acide": (1.0, 1.0), "neutre": (0.85, 0.70), "calcaire": (0.65, 0.45), "eau": (0.0, 0.0)}
 
 def main():
     ap = argparse.ArgumentParser()
@@ -86,22 +66,19 @@ def main():
         shapes = [(g, v) for g, v in zip(gdf.geometry, vals) if g is not None and v > 0]
         return features.rasterize(shapes, out_shape=(H, W), transform=T, fill=0, dtype="uint8")
 
-    unknown = set(foret.CODE_TFV) - set(ESSENCE) - {"LA4", "LA6"}
-    if unknown: print("codes non notés :", unknown)
-    ce = burn(foret, [int(ESSENCE.get(c, (0, 0))[0] * 250) for c in foret.CODE_TFV])
-    gi = burn(foret, [int(ESSENCE.get(c, (0, 0))[1] * 250) for c in foret.CODE_TFV])
+    unknown = set(foret.CODE_TFV) - set(MILIEU) - {"LA4", "LA6"}
+    if unknown: print("codes non classés :", unknown)
+    milieu = burn(foret, [MILIEU.get(c, 0) for c in foret.CODE_TFV])
 
     geol["cls"] = geol.DESCR.map(geol_class)
     print(geol.assign(ha=geol.area / 1e4 / k**2).groupby("cls").ha.sum().round(0).to_dict())
     order = {"acide": 1, "neutre": 2, "calcaire": 3, "eau": 4}
-    gc = burn(geol, [order[c] for c in geol.cls])
-    fac = np.ones((5, 2), dtype=np.float32); fac[0] = (0.85, 0.75)  # hors carte géol. : neutre
-    for c, i in order.items(): fac[i] = GEOL[c]
-    ce = (ce * fac[gc, 0]).round().astype("uint8")
-    gi = (gi * fac[gc, 1]).round().astype("uint8")
+    sol = burn(geol, [order[c] for c in geol.cls])
+    milieu[sol == 4] = 0          # plans d'eau
+    sol[sol == 4] = 0
     pubm = burn(pub, [1] * len(pub))
 
-    np.savez_compressed(f"{a.out}/build/habitat_base.npz", cepes=ce, girolles=gi, public=pubm)
+    np.savez_compressed(f"{a.out}/build/habitat_base.npz", milieu=milieu, sol=sol, public=pubm)
     lon0, lat0 = gpd.points_from_xy([xmin], [ymin], crs=3857).to_crs(4326)[0].coords[0]
     lon1, lat1 = gpd.points_from_xy([xmin + W * step], [ymax], crs=3857).to_crs(4326)[0].coords[0]
     json.dump({"width": W, "height": H, "res_m": RES, "merc": [xmin, ymin, xmin + W * step, ymax],
@@ -111,7 +88,7 @@ def main():
     out["geometry"] = out.to_crs(2154).geometry.simplify(25).to_crs(3857)
     out = out.to_crs(4326)
     out.to_file(f"{a.out}/docs/data/forets_publiques.geojson", driver="GeoJSON", COORDINATE_PRECISION=5)
-    print("forêt (px)", int((ce > 0).sum()), "publique (px)", int(pubm.sum()))
+    print("forêt (px)", int((milieu > 0).sum()), "publique (px)", int(pubm.sum()))
 
 if __name__ == "__main__":
     main()

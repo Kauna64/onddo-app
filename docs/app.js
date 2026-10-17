@@ -1,8 +1,9 @@
 /* Onddo : carte de pousse des champignons, Pyrénées-Atlantiques */
 "use strict";
 
-const state = { esp: "cepes", mode: "pousse", jour: 0, prive: false };
-let G, M, HAB, W, H, map, overlay, pubLayer, rowLat, colLon, nodeIdx;
+const state = { esp: "edulis", mode: "pousse", jour: 0, prive: false };
+let G, M, E, HAB, W, H, map, overlay, pubLayer, rowLat, colLon, nodeIdx;
+const LUT = {}, IDX = {};   // habitat par code milieu/sol, indice météo décodé, par espèce
 const NIV_MIN = 0.12;                       // en dessous : transparent
 const $ = (s) => document.querySelector(s);
 
@@ -31,11 +32,18 @@ const fmtJour = (iso) => {
 
 /* ---------- chargement ---------- */
 async function charge() {
-  const [g, m] = await Promise.all([
+  const [g, m, e] = await Promise.all([
     fetch("data/grid.json").then((r) => r.json()),
     fetch("data/meteo.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch("data/especes.json").then((r) => r.json()),
   ]);
-  G = g; M = m; W = g.width; H = g.height;
+  G = g; M = m && m.indice ? m : null; E = e; W = g.width; H = g.height;
+  for (const id of E.ordre) {
+    const sp = E.especes[id], t = new Float32Array(128);
+    for (let c = 0; c < 128; c++) t[c] = (sp.essences[c >> 2] || 0) * sp.sols[c & 3];
+    LUT[id] = t;
+  }
+  try { const s = localStorage.getItem("onddo-espece"); if (s && E.especes[s]) state.esp = s; } catch (_) {}
   const img = new Image(); img.src = "data/habitat.png";
   await img.decode();
   const c = document.createElement("canvas"); c.width = W; c.height = H;
@@ -74,16 +82,26 @@ function indiceMeteo(lat, lon, alt, jour, esp) {
   }
   return w > 0 ? s / w : 0;
 }
+// l'indice est stocké sous forme de texte (1 caractère = pas de 0,02) : décodé une fois par espèce
+function decode(esp) {
+  if (IDX[esp]) return IDX[esp];
+  const nL = M.niveaux.length, nJ = M.jours.length, src = M.indice[esp];
+  const a = new Uint8Array(src.length * nL * nJ), val = {};
+  [...M.alphabet].forEach((c, i) => (val[c] = i * 2));
+  src.forEach((niv, n) => niv.forEach((txt, k) => { for (let j = 0; j < nJ; j++) a[(n * nL + k) * nJ + j] = val[txt[j]] || 0; }));
+  return (IDX[esp] = a);
+}
 function valNiveau(n, alt, jour, esp) {
-  const L = M.niveaux, T = M[esp][n];
-  if (alt <= L[0]) return T[0][jour] / 100;
-  for (let k = 0; k < L.length - 1; k++) {
+  const L = M.niveaux, nL = L.length, nJ = M.jours.length, T = decode(esp);
+  const v = (k) => T[(n * nL + k) * nJ + jour];
+  if (alt <= L[0]) return v(0) / 100;
+  for (let k = 0; k < nL - 1; k++) {
     if (alt <= L[k + 1]) {
       const f = (alt - L[k]) / (L[k + 1] - L[k]);
-      return (T[k][jour] * (1 - f) + T[k + 1][jour] * f) / 100;
+      return (v(k) * (1 - f) + v(k + 1) * f) / 100;
     }
   }
-  return T[L.length - 1][jour] / 100;
+  return v(nL - 1) / 100;
 }
 function altPoint(lat, lon) { // altitude météo interpolée, faute de relief
   const g = M.grille; const i = Math.round((lat - g.lat0) / g.dlat), j = Math.round((lon - g.lon0) / g.dlon);
@@ -96,7 +114,7 @@ let rendu = null;
 function dessine() {
   const t0 = performance.now();
   const out = new ImageData(W, H), o = out.data;
-  const ch = state.esp === "cepes" ? 0 : 1;
+  const lut = LUT[state.esp];
   const pousse = state.mode === "pousse" && M;
   // cache de l'indice météo sur une grille grossière (8 px = 400 m) pour la vitesse
   const S = 8, cw = Math.ceil(W / S) + 1, chh = Math.ceil(H / S) + 1;
@@ -104,11 +122,12 @@ function dessine() {
   for (let r = 0; r < H; r++) {
     const lat = rowLat[r];
     for (let k = 0; k < W; k++) {
-      const p = (r * W + k) * 4, h = HAB[p + ch];
-      if (h === 0) continue;
+      const p = (r * W + k) * 4, code = HAB[p];
+      if (code < 4) continue;
       const b = HAB[p + 2];
       if (state.prive && !(b & 1)) continue;
-      let v = h / 250, rgb;
+      let v = lut[code] * HAB[p + 1] / 250, rgb;
+      if (v <= 0) continue;
       if (pousse) {
         const alt = altPixel(b, lat, colLon[k]);
         const key = ((r / S) | 0) * cw * 40 + ((k / S) | 0) * 40 + Math.min(39, (alt / 50) | 0);
@@ -152,6 +171,39 @@ function majStatut() {
   $("#maj").textContent = G.dem ? "Pyrénées-Atlantiques" : "Pyrénées-Atlantiques · relief en attente";
 }
 
+/* ---------- espèces ---------- */
+function especes() {
+  const box = $("#especes"); box.innerHTML = "";
+  let groupe = null;
+  for (const id of E.ordre) {
+    const sp = E.especes[id];
+    if (sp.groupe !== groupe) {
+      groupe = sp.groupe;
+      const t = document.createElement("span"); t.className = "grp"; t.textContent = groupe; box.appendChild(t);
+    }
+    const b = document.createElement("button");
+    b.className = "chip" + (id === state.esp ? " on" : ""); b.textContent = sp.nom; b.dataset.v = id;
+    b.onclick = () => {
+      state.esp = id;
+      try { localStorage.setItem("onddo-espece", id); } catch (_) {}
+      box.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === b));
+      ficheEspece(); map.closePopup(); dessine();
+    };
+    box.appendChild(b);
+  }
+  box.querySelector(".chip.on").scrollIntoView({ inline: "center", block: "nearest" });
+  ficheEspece();
+  // fiches détaillées dans le panneau d'information
+  $("#fiches").innerHTML = E.ordre.map((id) => {
+    const sp = E.especes[id];
+    return `<li><b>${sp.nom}</b> <i>(${sp.latin})</i> : ${sp.arbres.toLowerCase()} ; ${sp.periode.toLowerCase()}. ${sp.note}</li>`;
+  }).join("");
+}
+function ficheEspece() {
+  const sp = E.especes[state.esp];
+  $("#fiche").textContent = `${sp.arbres} · ${sp.periode}`;
+}
+
 /* ---------- jours ---------- */
 function jours() {
   const box = $("#days"); box.innerHTML = "";
@@ -172,7 +224,7 @@ function pixel(latlng) {
   const k = Math.floor(((latlng.lng - lo0) / (lo1 - lo0)) * W);
   const r = Math.floor(((mercY(la1) - mercY(latlng.lat)) / (mercY(la1) - mercY(la0))) * H);
   if (k < 0 || r < 0 || k >= W || r >= H) return null;
-  const p = (r * W + k) * 4; return { ce: HAB[p], gi: HAB[p + 1], b: HAB[p + 2] };
+  const p = (r * W + k) * 4; return { code: HAB[p], rel: HAB[p + 1], b: HAB[p + 2] };
 }
 function graphe(vals, auj) {
   const w = 220, h = 54, bw = w / vals.length;
@@ -212,14 +264,15 @@ function dansPoly(ll, geom) {
 function detail(e) {
   const px = pixel(e.latlng);
   if (!px) return;
-  const h = (state.esp === "cepes" ? px.ce : px.gi) / 250;
-  const alt = M ? Math.round(altPixel(px.b, e.latlng.lat, e.latlng.lng)) : null;
+  const h = px.code >= 4 ? LUT[state.esp][px.code] * px.rel / 250 : 0;
+  const alt = M || px.b >> 1 ? Math.round(altPixel(px.b, e.latlng.lat, e.latlng.lng)) : null;
   const nom = foretPublique(e.latlng);
-  const esp = state.esp === "cepes" ? "cèpes" : "girolles";
+  const esp = E.especes[state.esp].nom;
   let html = `<div class="pop">`;
-  if (h === 0) html += `<h4>Hors forêt favorable</h4>`;
+  if (px.code >= 4) html += `<div class="k">${E.milieux[px.code >> 2]} · ${E.sols[px.code & 3].toLowerCase()}${px.rel < 200 ? " · pente forte" : ""}</div>`;
+  if (h === 0) html += `<h4>${px.code >= 4 ? "Milieu défavorable : " + esp : "Hors forêt"}</h4>`;
   else {
-    html += `<h4>Habitat ${esp} : ${h >= 0.8 ? "très favorable" : h >= 0.55 ? "favorable" : h >= 0.3 ? "moyen" : "peu favorable"}</h4>`;
+    html += `<h4>${esp} : habitat ${h >= 0.8 ? "très favorable" : h >= 0.55 ? "favorable" : h >= 0.3 ? "moyen" : "peu favorable"}</h4>`;
     if (M) {
       const serie = M.jours.map((_, j) => h * indiceMeteo(e.latlng.lat, e.latlng.lng, alt, j, state.esp));
       const v = serie[state.jour];
@@ -232,7 +285,7 @@ function detail(e) {
   }
   if (alt !== null) html += `<div class="k">Altitude ≈ ${alt} m${px.b >> 1 ? "" : " (estimée)"}</div>`;
   html += `<div class="k">${nom ? "Forêt publique : " + nom : px.b & 1 ? "Forêt publique" : h > 0 ? "Forêt probablement privée : accord du propriétaire nécessaire" : ""}</div></div>`;
-  L.popup({ maxWidth: 260 }).setLatLng(e.latlng).setContent(html).openOn(map);
+  L.popup({ maxWidth: 260, autoPanPaddingTopLeft: [10, 90], autoPanPaddingBottomRight: [10, 280] }).setLatLng(e.latlng).setContent(html).openOn(map);
 }
 
 /* ---------- carte ---------- */
@@ -266,16 +319,15 @@ function majPub() {
 
 /* ---------- contrôles ---------- */
 function controles() {
-  for (const id of ["#seg-esp", "#seg-mode"]) {
-    $(id).querySelectorAll("button").forEach((b) => (b.onclick = () => {
-      $(id).querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
-      state[id === "#seg-esp" ? "esp" : "mode"] = b.dataset.v;
-      $("#days").style.display = state.mode === "pousse" && M ? "flex" : "none";
-      $(".ramp").classList.toggle("hab", state.mode === "habitat");
-      map.closePopup();
-      dessine();
-    }));
-  }
+  $("#seg-mode").querySelectorAll("button").forEach((b) => (b.onclick = () => {
+    $("#seg-mode").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+    state.mode = b.dataset.v;
+    $("#days").style.display = state.mode === "pousse" && M ? "flex" : "none";
+    $(".ramp").classList.toggle("hab", state.mode === "habitat");
+    map.closePopup();
+    dessine();
+  }));
+  especes();
   $("#chk-pub").onchange = majPub;
   $("#chk-prive").onchange = (e) => { state.prive = e.target.checked; map.closePopup(); dessine(); };
   $("#btn-info").onclick = () => $("#panel").classList.add("open");
@@ -323,7 +375,7 @@ async function horsLigne() {
   }
   // données de l'appli
   const app = await caches.open("onddo-donnees");
-  await app.addAll(["data/meteo.json", "data/habitat.png", "data/grid.json", "data/forets_publiques.geojson"]).catch(() => {});
+  await app.addAll(["data/meteo.json", "data/habitat.png", "data/grid.json", "data/especes.json", "data/forets_publiques.geojson"]).catch(() => {});
   st.textContent = `Zone enregistrée (${ok} tuiles). Elle reste consultable sans réseau.`;
 }
 

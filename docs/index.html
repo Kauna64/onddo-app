@@ -43,6 +43,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 .seg button.on{background:var(--accent);color:var(--accent-ink)}
 .days{display:flex;gap:4px;overflow-x:auto;padding:8px 0 6px;scrollbar-width:none;scroll-snap-type:x proximity}
 .days::-webkit-scrollbar{display:none}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none;align-items:center}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 12px;font:inherit;font-size:14px;font-weight:600}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.grp{flex:0 0 auto;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding-left:4px}
+.fiche{flex:1;font-size:12px;color:var(--muted);line-height:1.3;min-width:0}
 .day{flex:0 0 auto;min-width:46px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;
   padding:5px 4px;text-align:center;font:inherit;font-size:12px;scroll-snap-align:center}
 .day b{display:block;font-size:15px}
@@ -84,12 +90,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 </div>
 
 <div class="sheet">
+  <div class="chips" id="especes"></div>
   <div class="row">
-    <div class="seg" id="seg-esp">
-      <button data-v="cepes" class="on">Cèpes</button>
-      <button data-v="girolles">Girolles</button>
-    </div>
-    <div class="spacer"></div>
+    <div class="fiche" id="fiche"></div>
     <div class="seg" id="seg-mode">
       <button data-v="pousse" class="on">Pousse</button>
       <button data-v="habitat">Habitat</button>
@@ -109,7 +112,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 <div class="panel" id="panel">
   <button class="btn ghost close" id="btn-close">Fermer</button>
   <h2>Onddo</h2>
-  <p>Carte des zones où les conditions sont réunies pour une pousse de cèpes ou de girolles dans les Pyrénées-Atlantiques. Elle indique des zones <em>possibles</em>, pas des champignons certains.</p>
+  <p>Carte des zones où les conditions sont réunies pour la pousse de sept champignons comestibles dans les Pyrénées-Atlantiques. Elle indique des zones <em>possibles</em>, pas des champignons certains.</p>
+
+  <h3>Espèces</h3>
+  <ul id="fiches"></ul>
+  <p>Seul le cèpe de Bordeaux est calé sur des récoltes réelles (Iraty) ; pour les autres espèces, les réglages viennent de leur écologie connue.</p>
 
   <h3>Hors connexion</h3>
   <p>Avant de partir, cadrez la carte sur le massif visé puis enregistrez la zone : le fond de carte et les données du jour restent disponibles sans réseau.</p>
@@ -125,7 +132,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 
   <h3>Le modèle</h3>
   <ul>
-    <li>Pluie déclenchante 4 à 24 jours avant pour les cèpes (surtout 9 à 16 jours), 6 à 30 jours pour les girolles.</li>
+    <li>Pluie déclenchante quelques jours à quelques semaines avant, avec un délai propre à chaque espèce (9 à 16 jours pour le cèpe de Bordeaux).</li>
     <li>Une poussée dure quelques jours : l'indice décroît progressivement après.</li>
     <li>Réserve en eau du sol (pluie − évaporation) sur les 5 derniers jours.</li>
     <li>Température du sol estimée, corrigée de l'altitude du point (−0,65 °C / 100 m) : la pousse se décale avec l'étage.</li>

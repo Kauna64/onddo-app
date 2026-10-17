@@ -1,8 +1,8 @@
 /* Service worker : fonctionnement sans réseau */
-const VERSION = "onddo-v1";
+const VERSION = "onddo-v2";
 const COQUILLE = ["./", "index.html", "app.js", "manifest.webmanifest", "icons/icon-192.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "data/grid.json", "data/habitat.png", "data/forets_publiques.geojson"];
+  "data/grid.json", "data/especes.json", "data/habitat.png", "data/forets_publiques.geojson"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COQUILLE)).then(() => self.skipWaiting()));
@@ -20,7 +20,7 @@ self.addEventListener("fetch", (e) => {
   const url = e.request.url;
   if (e.request.method !== "GET") return;
   // météo : réseau d'abord, copie locale si pas de réseau
-  if (url.includes("/data/meteo.json") || url.includes("/data/habitat.png") || url.includes("/data/grid.json")) {
+  if (/\/data\/(meteo|especes|grid)\.json|\/data\/habitat\.png/.test(url)) {
     e.respondWith(fetch(e.request).then((r) => {
       const copie = r.clone(); caches.open("onddo-donnees").then((c) => c.put(url.split("?")[0], copie)); return r;
     }).catch(() => caches.match(url.split("?")[0], { ignoreSearch: true })));
@@ -31,6 +31,13 @@ self.addEventListener("fetch", (e) => {
       if (r.ok || r.type === "opaque") { const copie = r.clone(); caches.open("onddo-vues").then((c) => c.put(cle(url), copie)); }
       return r;
     })));
+    return;
+  }
+  // pages et scripts de l'appli : réseau d'abord (pour recevoir les mises à jour), copie locale sinon
+  if (url.startsWith(self.location.origin)) {
+    e.respondWith(fetch(e.request).then((r) => {
+      const copie = r.clone(); caches.open(VERSION).then((c) => c.put(e.request, copie)); return r;
+    }).catch(() => caches.match(e.request)));
     return;
   }
   e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));

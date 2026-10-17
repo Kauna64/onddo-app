@@ -7,14 +7,14 @@ Calage initial (octobre 2026) sur les récoltes d'Iraty : 03/09/2022, 17/09/2023
 """
 import numpy as np
 
-ESPECES = {
-    # lag : délai (jours) entre la pluie et la pousse (début montée, début plateau, fin plateau, fin)
-    # t : plage de température du sol (°C) ; persist : part de l'indice conservée d'un jour sur l'autre
-    "cepes":    dict(lag=(4, 9, 16, 24), seuil=15, plage=50, t=(6, 10, 17, 22), persist=0.85,
-                     saison=[.05, .05, .1, .25, .6, .7, .6, .7, 1, 1, .85, .3]),
-    "girolles": dict(lag=(6, 12, 20, 30), seuil=15, plage=50, t=(9, 13, 21, 26), persist=0.9,
-                     saison=[0, 0, 0, .1, .4, .8, .9, .9, 1, .9, .6, .15]),
-}
+import json, os
+# Paramètres par espèce : voir « meteo » dans docs/data/especes.json
+#   lag : délai (jours) entre la pluie et la pousse (début montée, début plateau, fin plateau, fin)
+#   seuil / plage : pluie pondérée (mm) à partir de laquelle la pousse démarre / devient maximale
+#   t : plage de température du sol (°C) ; persist : part de l'indice conservée d'un jour sur l'autre
+#   humide_min : poids minimal de l'humidité du sol (plus bas = espèce plus exigeante en humidité)
+_CFG = json.load(open(os.path.join(os.path.dirname(__file__), "..", "docs", "data", "especes.json"), encoding="utf-8"))
+ESPECES = {k: v["meteo"] for k, v in _CFG["especes"].items()}
 NIVEAUX = [100, 400, 700, 1000, 1300, 1600]  # altitudes (m) pour lesquelles l'indice est calculé
 RESERVE = 60.0                                # réserve utile du sol forestier (mm)
 
@@ -47,7 +47,8 @@ def indice(P, Tm, Tn, ET0, mois, espece, dT=0.0):
     for j in range(d + 1, n):
         pluie = float(poids @ P[j - d:j + 1][::-1])
         declenche = np.clip((pluie - e["seuil"]) / e["plage"], 0, 1) ** 0.6
-        humide = 0.3 + 0.7 * np.clip((W[j - 5:j + 1].mean() - 10) / 25, 0, 1)
+        hm = e.get("humide_min", 0.3)
+        humide = hm + (1 - hm) * np.clip((W[j - 5:j + 1].mean() - 10) / 25, 0, 1)
         temp = trapeze(Ts[j - 10:j + 1].mean(), *e["t"])
         tmin = Tn[j - 4:j + 1].min()
         gel = 0.2 if tmin < -2 else (0.6 if tmin < 0.5 else 1.0)

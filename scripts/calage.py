@@ -18,14 +18,14 @@ for an in (2022, 2023, 2024, 2025):
     HIST[an] = {"alt": alt, **dd}
     print(f"\n=== {an} (altitude du point météo {alt:.0f} m) ===")
     for lv in (1000, 1300):
-        ix = indice(P, Tm, Tn, E, mois, "cepes", -0.0065 * (lv - alt))
+        ix = indice(P, Tm, Tn, E, mois, "edulis", -0.0065 * (lv - alt))
         top = [dates[i] for i in np.argsort(np.nan_to_num(ix))[::-1][:8]]
         print(f"  {lv} m : 8 meilleurs jours {sorted(top)}")
         for r in RECOLTES:
             if r.startswith(str(an)):
                 i = dates.index(r); rang = int((np.nan_to_num(ix[92:]) > ix[i]).sum()) + 1  # rang parmi les 91 jours sept-nov
                 print(f"    récolte {r} : indice {ix[i]:.2f} (max saison {np.nanmax(ix):.2f}, rang {rang} sur sept-nov)")
-    sem = [f"{dates[i][5:]}:{100*np.nan_to_num(indice(P, Tm, Tn, E, mois, 'cepes', -0.0065*(1100-alt)))[i]:.0f}"
+    sem = [f"{dates[i][5:]}:{100*np.nan_to_num(indice(P, Tm, Tn, E, mois, 'edulis', -0.0065*(1100-alt)))[i]:.0f}"
            for i in range(76, 183, 4)]
     print("  1100 m, tous les 4 jours (août-nov) :", " ".join(sem))
     print("  pluie mensuelle (mm) :", {m: round(float(P[[k for k in range(len(dates)) if mois[k]==m]].sum())) for m in range(6, 12)})
