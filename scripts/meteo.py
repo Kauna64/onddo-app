@@ -74,6 +74,11 @@ def main():
         alt = r.get("elevation", 0) or 0
         out["points"].append({"i": p[0], "j": p[1], "lat": p[2], "lon": p[3], "alt": round(alt),
                               "p": r1(P), "tm": r1(Tm), "tn": r1(Tn), "e": r1(E)})
+    # pluie réellement mesurée aux pluviomètres Météo-France pour les jours passés
+    import pluviometres
+    info = pluviometres.applique(out["points"], out["dates"], auj)
+    if info:
+        out["pluviometres"] = info
     json.dump(out, open("docs/data/meteo.json", "w"), separators=(",", ":"))
     print("meteo.json écrit", flush=True)
 

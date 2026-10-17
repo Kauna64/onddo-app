@@ -186,6 +186,7 @@ function majStatut() {
     const age = (Date.now() - d) / 36e5;
     s = `Météo du ${d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
     if (age > 30) s += " · données anciennes";
+    if (M.pluviometres) s += ` · pluviomètres au ${new Date(M.pluviometres.jusqu_au + "T12:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`;
     const j = M.jours[state.jour];
     if (state.mode === "pousse") s += ` · ${state.jour > M.auj ? "prévision" : state.jour < M.auj ? "passé" : "aujourd'hui"} ${new Date(j + "T12:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })}`;
   }
@@ -391,7 +392,11 @@ function detail(e) {
       if (v < 0.6 && lim[1] < 0.75) h += `<p class="pt-lim">Ce qui limite surtout : <b>${lim[0]}</b>.</p>`;
       const p15 = s.p.slice(M.aujourdhui - 14, M.aujourdhui + 1).reduce((x, y) => x + y, 0), p7 = s.p.slice(M.aujourdhui + 1, M.aujourdhui + 8).reduce((x, y) => x + y, 0);
       h += `<ul class="pt-raisons">${raisons.join("")}</ul>`;
-      h += `<p class="k">Pluie : ${Math.round(p15)} mm ces 15 derniers jours, ${Math.round(p7)} mm prévus sur 7 jours.</p>`;
+      const g = M.grille, nn = nodeIdx[Math.round((ll.lat - g.lat0) / g.dlat) * g.nlon + Math.round((ll.lng - g.lon0) / g.dlon)];
+      const pv = nn >= 0 && M.points[nn].pluvio;
+      h += `<p class="k">Pluie : ${Math.round(p15)} mm ces 15 derniers jours, ${Math.round(p7)} mm prévus sur 7 jours.${pv
+        ? ` Jours passés corrigés par les pluviomètres Météo-France (le plus proche : ${pv.nom}, ${f1(pv.km)} km${pv.part ? `, poids ${Math.round(pv.part * 100)} %` : ""}).`
+        : M.pluviometres ? " Pas de pluviomètre à moins de 15 km : pluie estimée par le modèle." : ""}</p>`;
     }
   } else if (raisons.length) h += `<ul class="pt-raisons">${raisons.join("")}</ul>`;
 
