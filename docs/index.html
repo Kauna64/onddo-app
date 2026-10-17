@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Onddo</title>
+<meta name="theme-color" content="#2b2118">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Onddo">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#f6f1e7; --panel:#fffaf1; --ink:#2b2118; --muted:#7a6a58; --line:#e3d8c6;
+  --accent:#9a4a1c; --accent-ink:#fff; --ok:#3e6b35;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#1b1612; --panel:#241d17; --ink:#f1e7d8; --muted:#b3a28c; --line:#3a3027; --accent:#d77a3e; --accent-ink:#1b1612; --ok:#86b878;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+#map{position:fixed;inset:0;background:#ddd}
+.leaflet-container{font:inherit}
+.top{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;
+  display:flex;gap:8px;align-items:center;pointer-events:none;z-index:1000}
+.top>*{pointer-events:auto}
+.brand{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px;
+  font-weight:700;letter-spacing:.02em;box-shadow:0 2px 8px #0002}
+.brand small{display:block;font-weight:400;color:var(--muted);font-size:11px;letter-spacing:0}
+.spacer{flex:1}
+.fab{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  font-size:20px;display:grid;place-items:center;box-shadow:0 2px 8px #0002}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-top:1px solid var(--line);
+  border-radius:18px 18px 0 0;padding:10px 14px calc(env(safe-area-inset-bottom) + 12px);box-shadow:0 -4px 16px #0003}
+.row{display:flex;gap:8px;align-items:center}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:2px}
+.seg button{border:0;background:none;color:var(--ink);padding:7px 12px;border-radius:8px;font:inherit;font-weight:600}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.days{display:flex;gap:4px;overflow-x:auto;padding:8px 0 6px;scrollbar-width:none;scroll-snap-type:x proximity}
+.days::-webkit-scrollbar{display:none}
+.day{flex:0 0 auto;min-width:46px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;
+  padding:5px 4px;text-align:center;font:inherit;font-size:12px;scroll-snap-align:center}
+.day b{display:block;font-size:15px}
+.day.today{border-color:var(--accent)}
+.day.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.day.past{opacity:.75}
+.legend{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.ramp{flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,#f3e27a,#f0a63a,#d9542b,#8e1f3f)}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);white-space:nowrap}
+.chk input{width:18px;height:18px;accent-color:var(--accent)}
+.status{font-size:12px;color:var(--muted);margin-top:4px}
+.panel{position:fixed;inset:0;z-index:2000;background:var(--panel);overflow:auto;display:none;
+  padding:calc(env(safe-area-inset-top) + 14px) 18px calc(env(safe-area-inset-bottom) + 24px)}
+.panel.open{display:block}
+.panel h2{margin:.2em 0 .6em;font-size:20px}
+.panel h3{margin:1.2em 0 .3em;font-size:15px}
+.panel p,.panel li{color:var(--ink);font-size:14px}
+.panel .close{position:sticky;top:0;float:right}
+.btn{border:0;border-radius:10px;padding:10px 14px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600}
+.btn.ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.pop h4{margin:0 0 4px;font-size:15px}
+.pop .k{color:#7a6a58;font-size:12px}
+.pop .big{font-size:22px;font-weight:700}
+.pop svg{display:block;margin:6px 0}
+.leaflet-popup-content{margin:10px 12px;min-width:220px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:190px;z-index:3000;background:#2b2118;color:#fff;
+  padding:8px 12px;border-radius:10px;font-size:13px;display:none;max-width:90vw}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="top">
+  <div class="brand">Onddo<small id="maj">Pyrénées-Atlantiques</small></div>
+  <div class="spacer"></div>
+  <button class="fab" id="btn-gps" aria-label="Me localiser">◎</button>
+  <button class="fab" id="btn-info" aria-label="Informations">i</button>
+</div>
+
+<div class="sheet">
+  <div class="row">
+    <div class="seg" id="seg-esp">
+      <button data-v="cepes" class="on">Cèpes</button>
+      <button data-v="girolles">Girolles</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg" id="seg-mode">
+      <button data-v="pousse" class="on">Pousse</button>
+      <button data-v="habitat">Habitat</button>
+    </div>
+  </div>
+  <div class="days" id="days"></div>
+  <div class="row" style="flex-wrap:wrap;gap:12px">
+    <div class="legend" style="flex:1;min-width:150px"><span>faible</span><div class="ramp"></div><span>fort</span></div>
+    <label class="chk"><input type="checkbox" id="chk-pub" checked>Forêts publiques</label>
+    <label class="chk"><input type="checkbox" id="chk-prive">Masquer le privé</label>
+  </div>
+  <div class="status" id="status">Chargement…</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="panel" id="panel">
+  <button class="btn ghost close" id="btn-close">Fermer</button>
+  <h2>Onddo</h2>
+  <p>Carte des zones où les conditions sont réunies pour une pousse de cèpes ou de girolles dans les Pyrénées-Atlantiques. Elle indique des zones <em>possibles</em>, pas des champignons certains.</p>
+
+  <h3>Hors connexion</h3>
+  <p>Avant de partir, cadrez la carte sur le massif visé puis enregistrez la zone : le fond de carte et les données du jour restent disponibles sans réseau.</p>
+  <button class="btn" id="btn-offline">Garder la zone affichée hors connexion</button>
+  <p class="status" id="offline-status"></p>
+
+  <h3>Comment lire la carte</h3>
+  <ul>
+    <li><b>Pousse</b> : habitat favorable × météo du jour choisi. Les jours après aujourd'hui sont des prévisions.</li>
+    <li><b>Habitat</b> : uniquement l'essence des arbres, le type de sol, la pente et l'altitude.</li>
+    <li>Touchez la carte pour le détail : historique de l'indice, pluie, altitude, statut de la forêt.</li>
+  </ul>
+
+  <h3>Le modèle</h3>
+  <ul>
+    <li>Pluie déclenchante 6 à 14 jours avant (cèpes), 8 à 21 jours (girolles).</li>
+    <li>Réserve en eau du sol (pluie − évaporation) sur les 5 derniers jours.</li>
+    <li>Température du sol estimée, corrigée de l'altitude du point (−0,65 °C / 100 m) : la pousse se décale avec l'étage.</li>
+    <li>Gel des derniers jours et période de l'année.</li>
+  </ul>
+  <p>Données : BD Forêt V2 (IGN, 2014), carte géologique BD Charm-50 (BRGM), forêts publiques (ONF), relief Copernicus, météo Open-Meteo mise à jour chaque matin.</p>
+
+  <h3>Règles et prudence</h3>
+  <ul>
+    <li><b>Forêt privée</b> : cueillette interdite sans l'accord du propriétaire.</li>
+    <li><b>Forêts communales et syndicales</b> (presque toutes les forêts publiques du 64) : la commune ou la commission syndicale fixe ses règles. Renseignez-vous en mairie.</li>
+    <li><b>Chasse</b> : pas de carte ouverte des battues. En octobre-novembre, la chasse à la palombe occupe les cols et les crêtes : gilet orange recommandé.</li>
+    <li><b>Iraty</b> touche la Navarre : côté espagnol, la cueillette suit d'autres règles (permis).</li>
+    <li>Aucune appli ne remplace l'identification : en cas de doute, ne consommez pas.</li>
+  </ul>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
