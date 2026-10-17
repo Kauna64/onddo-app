@@ -8,7 +8,7 @@ Carte de pousse des cèpes et des girolles dans les Pyrénées-Atlantiques, cons
 - **Carte fixe des habitats** (`build/habitat_base.npz`, `docs/data/habitat.png`) : essences forestières (BD Forêt V2, IGN),
   acidité du sol (BD Charm-50, BRGM), forêts publiques (ONF), pente et altitude (Copernicus DEM 30 m). Pixel de 50 m.
 - **Météo quotidienne** (`docs/data/meteo.json`) : 464 points Open-Meteo (pas de 0,05°) sur les forêts du département,
-  60 jours d'historique et 9 jours de prévision. L'indice de pousse (`scripts/indice.py`) est calculé pour 6 altitudes,
+  45 jours d'historique et 9 jours de prévision. L'indice de pousse (`scripts/indice.py`) est calculé pour 6 altitudes,
   puis interpolé sur la carte selon l'altitude de chaque pixel.
 - **Application** (`docs/`) : page web installable sur l'écran d'accueil, utilisable hors connexion sur une zone enregistrée.
 

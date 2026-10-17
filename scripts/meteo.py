@@ -5,7 +5,7 @@ from indice import indice, NIVEAUX, ESPECES
 
 LAT0, LON0, DLAT, DLON = 42.75, -1.80, 0.05, 0.05
 NLAT, NLON = 19, 38
-PASSE, FUTUR, AFFICHE = 60, 9, 7  # jours d'historique pour le bilan d'eau, de prévision, affichés de chaque côté
+PASSE, FUTUR, AFFICHE = 45, 9, 7  # jours d'historique pour le bilan d'eau, de prévision, affichés de chaque côté
 DAILY = "precipitation_sum,temperature_2m_mean,temperature_2m_min,et0_fao_evapotranspiration"
 
 def points_actifs():
@@ -34,13 +34,13 @@ def appel(lats, lons):
     url = ("https://api.open-meteo.com/v1/forecast?latitude=" + ",".join(map(str, lats)) +
            "&longitude=" + ",".join(map(str, lons)) + f"&daily={DAILY}&past_days={PASSE}&forecast_days={FUTUR}"
            "&timezone=Europe%2FParis")
-    for essai in range(6):
+    for essai in range(10):
         try:
             with urllib.request.urlopen(url, timeout=120) as r:
                 d = json.load(r)
                 return d if isinstance(d, list) else [d]
         except urllib.error.HTTPError as e:
-            print("  erreur", e.code, "- nouvel essai dans 65 s", flush=True); time.sleep(65)
+            print("  erreur", e.code, e.read()[:200], "- nouvel essai dans 2 min", flush=True); time.sleep(120)
     raise RuntimeError("Open-Meteo injoignable")
 
 def main():
