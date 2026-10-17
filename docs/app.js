@@ -477,6 +477,7 @@ function controles() {
       moi = L.layerGroup([L.circle(ll, { radius: p.coords.accuracy, weight: 1, color: "#1f6feb", fillOpacity: 0.1 }),
         L.circleMarker(ll, { radius: 7, color: "#fff", weight: 2, fillColor: "#1f6feb", fillOpacity: 1 })]).addTo(map);
       map.setView(ll, Math.max(map.getZoom(), 14));
+      if (typeof HorsLigne !== "undefined") HorsLigne.autour(ll[0], ll[1]);
     }, () => toast("Position refusée ou introuvable"), { enableHighAccuracy: true, timeout: 15000 });
   };
   $("#btn-offline").onclick = horsLigne;
@@ -521,6 +522,7 @@ async function horsLigne() {
     await charge();
     initCarte(); controles(); jours(); dessine();
     if (window.initCarnetUI) initCarnetUI();
+    if (window.initTerrain) initTerrain();
   } catch (e) {
     $("#status").textContent = "Erreur de chargement : " + e.message;
     throw e;

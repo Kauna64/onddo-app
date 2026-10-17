@@ -124,6 +124,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 .pt-actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
 .photo{max-width:100%;border-radius:10px;margin-top:6px}
 code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
+.top{gap:6px}.top .fab{width:42px;height:42px;font-size:19px}
+.brand small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42vw}
+.terrain{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 64px);z-index:1000;display:none;background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px;box-shadow:0 2px 8px #0003}
+.fleche{display:inline-block;color:#1f6feb;font-size:18px;transition:transform .3s}
+.voiture-icone{font-size:24px;line-height:30px;text-align:center;filter:drop-shadow(0 0 2px #fff)}
 </style>
 </head>
 <body>
@@ -132,6 +138,7 @@ code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
 <div class="top">
   <div class="brand"><img src="icons/icon-192.png" alt="" class="logo"><div>Onddo<small id="maj">Pyrénées-Atlantiques</small></div></div>
   <div class="spacer"></div>
+  <button class="fab" id="btn-terrain" aria-label="Voiture et tracé">🚗</button>
   <button class="fab" id="btn-carnet" aria-label="Mon carnet">📓</button>
   <button class="fab" id="btn-gps" aria-label="Me localiser">◎</button>
   <button class="fab" id="btn-info" aria-label="Informations">i</button>
@@ -156,6 +163,11 @@ code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
 </div>
 
 <button class="fab-ajout" id="btn-ajout" aria-label="Noter une sortie">＋</button>
+<div class="terrain" id="terrain"></div>
+<div class="panel" id="terrain-panel">
+  <button class="btn ghost close" id="terrain-fermer">Fermer</button>
+  <div id="terrain-corps"></div>
+</div>
 <div class="toast" id="toast"></div>
 
 <div class="panel" id="carnet">
@@ -219,5 +231,6 @@ code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
 <script src="carnet.js"></script>
 <script src="app.js"></script>
 <script src="carnet-ui.js"></script>
+<script src="terrain.js"></script>
 </body>
 </html>

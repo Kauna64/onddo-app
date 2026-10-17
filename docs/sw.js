@@ -1,8 +1,8 @@
 /* Service worker : fonctionnement sans réseau */
-const VERSION = "onddo-v5";
+const VERSION = "onddo-v6";
 const COQUILLE = ["./", "index.html", "app.js", "manifest.webmanifest", "icons/icon-192.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "indice.js", "carnet.js", "carnet-ui.js", "carnet/onddo.yml", "data/grid.json", "data/especes.json", "data/chasse.json", "data/habitat.png", "data/forets_publiques.geojson"];
+  "indice.js", "carnet.js", "carnet-ui.js", "terrain.js", "carnet/onddo.yml", "data/grid.json", "data/especes.json", "data/chasse.json", "data/habitat.png", "data/forets_publiques.geojson"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COQUILLE)).then(() => self.skipWaiting()));
