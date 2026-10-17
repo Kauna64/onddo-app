@@ -250,9 +250,18 @@ function initCarte() {
   window._fonds = { plan, ortho, topo };
 
   fetch("data/forets_publiques.geojson").then((r) => r.json()).then((gj) => {
-    pubLayer = L.geoJSON(gj, { interactive: false, style: { color: "#2f6b3a", weight: 1.6, dashArray: "4 3", fill: false } });
-    if ($("#chk-pub").checked) pubLayer.addTo(map);
+    pubLayer = L.geoJSON(gj, { interactive: false, style: { color: "#2f6b3a", weight: 1.4, dashArray: "4 3", fill: false } });
+    majPub();
+    map.on("zoomend", majPub);
   });
+}
+
+// contours des forêts publiques : visibles à partir du zoom 11 pour ne pas surcharger la vue d'ensemble
+function majPub() {
+  if (!pubLayer) return;
+  const voir = $("#chk-pub").checked && map.getZoom() >= 11;
+  if (voir && !map.hasLayer(pubLayer)) pubLayer.addTo(map);
+  if (!voir && map.hasLayer(pubLayer)) pubLayer.remove();
 }
 
 /* ---------- contrôles ---------- */
@@ -261,12 +270,14 @@ function controles() {
     $(id).querySelectorAll("button").forEach((b) => (b.onclick = () => {
       $(id).querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
       state[id === "#seg-esp" ? "esp" : "mode"] = b.dataset.v;
-      $("#days").style.visibility = state.mode === "pousse" ? "visible" : "hidden";
+      $("#days").style.display = state.mode === "pousse" && M ? "flex" : "none";
+      $(".ramp").classList.toggle("hab", state.mode === "habitat");
+      map.closePopup();
       dessine();
     }));
   }
-  $("#chk-pub").onchange = (e) => pubLayer && (e.target.checked ? pubLayer.addTo(map) : pubLayer.remove());
-  $("#chk-prive").onchange = (e) => { state.prive = e.target.checked; dessine(); };
+  $("#chk-pub").onchange = majPub;
+  $("#chk-prive").onchange = (e) => { state.prive = e.target.checked; map.closePopup(); dessine(); };
   $("#btn-info").onclick = () => $("#panel").classList.add("open");
   $("#btn-close").onclick = () => $("#panel").classList.remove("open");
   let moi;
@@ -322,7 +333,6 @@ async function horsLigne() {
   try {
     await charge();
     initCarte(); controles(); jours(); dessine();
-    if (M && M.jours) { /* rien */ }
   } catch (e) {
     $("#status").textContent = "Erreur de chargement : " + e.message;
     throw e;

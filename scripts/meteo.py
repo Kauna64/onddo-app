@@ -62,7 +62,7 @@ def main():
     for p, r in zip(pts, res):
         d = r["daily"]
         P, Tm, Tn, E = (np.array(d[v], dtype=float) for v in DAILY.split(","))
-        Tm = np.where(np.isnan(Tm), Tn + 5, Tm)
+        Tm = np.where(np.isnan(Tm), Tn + 5, Tm)  # trous comblés ensuite dans indice()
         alt = r.get("elevation", 0) or 0
         for esp in ESPECES:
             out[esp].append([[int(round(100 * x)) if not np.isnan(x) else 0
