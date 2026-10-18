@@ -60,3 +60,21 @@ function ajusteParams(e, adj) {
 }
 const secteurDe = (alt) => (alt < 300 ? "cote" : alt < 900 ? "piemont" : "montagne");
 if (typeof module !== "undefined") module.exports.ajusteParams = ajusteParams;
+
+/* Réglage public de la côte basque (voir « secteur_cote » dans especes.json), dosé selon l'altitude */
+function poidsCote(cfg, alt) {
+  const c = cfg && cfg.secteur_cote;
+  if (!c || alt == null) return 0;
+  return Math.min(1, Math.max(0, (c.alt_fin - alt) / (c.alt_fin - c.alt_plein)));
+}
+function paramsPour(cfg, esp, alt, perso) {
+  let e = cfg.especes[esp].meteo;
+  const w = poidsCote(cfg, alt), c = cfg.secteur_cote;
+  if (w > 0) {
+    const k = 1 + w * (c.k - 1), hm0 = e.humide_min ?? 0.3;
+    const dT = ((e.secteurs || {}).cote || {}).dT * w || 0;
+    e = { ...e, seuil: e.seuil * k, plage: e.plage * k, humide_min: hm0 + w * (c.humide_min - hm0), t: e.t.map((x) => x + dT) };
+  }
+  return ajusteParams(e, perso);
+}
+if (typeof module !== "undefined") module.exports.paramsPour = paramsPour;

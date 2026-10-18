@@ -94,7 +94,7 @@ function indiceMeteo(lat, lon, alt, jour, esp) {
 function decode(esp) {
   if (IDX[esp]) return IDX[esp];
   const L = M.niveaux, nL = L.length, nJ = M.jours.length, e0 = E.especes[esp].meteo;
-  const eNiv = L.map((lv) => ajusteParams(e0, reglagePour(esp, lv)));
+  const eNiv = L.map((lv) => paramsPour(E, esp, lv, reglagePour(esp, lv)));
   const a = new Float32Array(M.points.length * nL * nJ);
   M.points.forEach((pt, n) => L.forEach((lv, k) => {
     const r = calculIndice(pt.p, pt.tm, pt.tn, pt.e, M.mois, eNiv[k], GRAD * (lv - pt.alt), false);
@@ -335,12 +335,12 @@ function detail(e) {
   if (!px) return;
   if (repere) repere.setLatLng(ll); else repere = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b2118", fillOpacity: 1 }).addTo(map);
   const sp = E.especes[state.esp];
-  let em = sp.meteo;
+  let em = sp.meteo, cote = 0;
   const hab = px.code >= 4 ? LUT[state.esp][px.code] * px.rel : 0;
   const alt = M || px.b >> 1 ? Math.round(altPixel(px.b, ll.lat, ll.lng)) : null;
   const nom = foretPublique(ll);
   const adj = alt !== null ? reglagePour(state.esp, alt) : null;
-  if (adj) em = ajusteParams(em, adj);
+  if (alt !== null) { em = paramsPour(E, state.esp, alt, adj); cote = poidsCote(E, alt); }
   let h = `<div class="pt-titre">${sp.nom}</div>`;
   const raisons = [];
 
@@ -368,7 +368,7 @@ function detail(e) {
       let pl = 0, jmax = -1, vmax = 0;
       for (let k = a; k <= dmax; k++) { const x = s.p[jd - k]; pl += x; if (x > vmax) { vmax = x; jmax = jd - k; } }
       raisons.push(ligne(d.declenche, "Pluie déclenchante",
-        `${Math.round(d.pluie)} mm « utiles » (pluie tombée ${em.lag[1]} à ${em.lag[2]} jours avant, la plus efficace). ${Math.round(pl)} mm en tout entre le ${dateCourte(M.dates[jd - dmax])} et le ${dateCourte(M.dates[jd - a])}${vmax >= 5 ? `, dont ${Math.round(vmax)} mm le ${dateCourte(M.dates[jmax])}` : ""}. ; il en faut environ ${em.seuil + em.plage} pour un plein déclenchement.`));
+        `${Math.round(d.pluie)} mm « utiles » (pluie tombée ${em.lag[1]} à ${em.lag[2]} jours avant, la plus efficace). ${Math.round(pl)} mm en tout entre le ${dateCourte(M.dates[jd - dmax])} et le ${dateCourte(M.dates[jd - a])}${vmax >= 5 ? `, dont ${Math.round(vmax)} mm le ${dateCourte(M.dates[jmax])}` : ""} ; il en faut environ ${Math.round(em.seuil + em.plage)} mm pour un plein déclenchement.`));
       raisons.push(ligne((d.humide - (em.humide_min ?? 0.3)) / (1 - (em.humide_min ?? 0.3)), "Humidité du sol",
         `Réserve en eau estimée ${Math.round(d.reserve)} mm sur ${RESERVE} (${d.reserve >= 35 ? "sol bien humide" : d.reserve >= 20 ? "sol frais" : d.reserve >= 10 ? "sol qui s'assèche" : "sol sec"}).`));
       const [t0, t1, t2, t3] = em.t;
@@ -381,6 +381,8 @@ function detail(e) {
           : `Exposé au sud : sol estimé ${f1(-ecart)} °C plus chaud qu'à plat en cette saison, mais qui sèche plus vite. Avantage en fin de saison et en altitude.`));
       }
       raisons.push(ligne(d.gel, "Gel", d.tmin < 0.5 ? `Gelée le ${dateCourte(M.dates[d.jgel])} (${f1(d.tmin)} °C) : les poussées sont freinées.` : `Aucune gelée ces 5 derniers jours (minimum ${f1(d.tmin)} °C).`));
+      if (cote > 0.05)
+        raisons.push(ligne(1, "Réglage côte basque", `Sous 400 m près de l'océan, l'air humide et les sols profonds font démarrer les poussées avec moins de pluie (calé sur la poussée du 16-18 octobre 2026)${cote < 1 ? ` ; appliqué à ${Math.round(cote * 100)} % à cette altitude` : ""}.`));
       if (adj && (adj.dT || adj.k !== 1))
         raisons.push(ligne(1, "Réglage appris sur vos sorties", `${adj.dT ? `températures idéales décalées de ${adj.dT > 0 ? "+" : ""}${adj.dT} °C` : ""}${adj.dT && adj.k !== 1 ? ", " : ""}${adj.k !== 1 ? `besoin en pluie ×${f1(adj.k)}` : ""} (${adj.n} récoltes, ${adj.n_vides} sorties vides).`));
       raisons.push(ligne(d.saison, "Saison", `${sp.periode} ; ${d.saison >= 0.8 ? "pleine saison" : d.saison >= 0.4 ? "début ou fin de saison" : "hors saison habituelle"}.`));

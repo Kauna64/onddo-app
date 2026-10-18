@@ -16,7 +16,7 @@ from PIL import Image
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ICI, "..", "scripts"))
-from indice import indice, ajuste, secteur, bouche_trous  # noqa: E402
+from indice import indice, ajuste, secteur, bouche_trous, params_pour  # noqa: E402
 from coffre import chiffre, dechiffre  # noqa: E402
 
 GRAD, EXPO = -0.0065, 0.6
@@ -121,11 +121,13 @@ def apprend(pub, sorties):
         alt = (px or {}).get("alt") or a.get("elevation") or 0
         rec["dT"] = GRAD * (alt - (a.get("elevation") or alt))
         rec["nord"] = (px or {}).get("nord", 0.0)
+        rec["alt"], rec["esp"] = alt, esp
         groupes.setdefault((esp, secteur(alt)), []).append(rec)
 
-    def score(recs, e):
+    def score(recs, adj):
         rp, rn = [], []
         for r in recs:
+            e = params_pour(r["esp"], r["alt"], adj)  # réglage public de la côte, puis réglage personnel testé
             ix = np.nan_to_num(indice(r["P"], r["Tm"], r["Tn"], r["E"], r["mois"], None, r["dT"], params=e, nord=r["nord"]))
             saison = ix[40:]  # jours où l'indice est calculable (40 jours de météo nécessaires)
             rang = float((saison < ix[r["jour"]]).mean())
@@ -143,14 +145,13 @@ def apprend(pub, sorties):
         npos = sum(r["trouve"] for r in recs); nneg = len(recs) - npos
         if npos < 3:
             continue
-        base = pub.E["especes"][esp]["meteo"]
-        s0 = score(recs, base)
+        s0 = score(recs, None)
         meilleur = (s0, 0, 1.0)
         for dT in (-3, -2, -1, 0, 1, 2, 3):
             for k in (0.6, 0.8, 1.0, 1.25, 1.5):
                 if dT == 0 and k == 1.0:
                     continue
-                s = score(recs, ajuste(base, {"dT": dT, "k": k}))
+                s = score(recs, {"dT": dT, "k": k})
                 if s is None:
                     continue
                 s -= 0.02 * (abs(dT) + 2 * abs(math.log(k)))  # on ne s'écarte du réglage de base que si ça vaut le coup
@@ -182,7 +183,7 @@ def alertes(pub, carnet, reglages, etat):
         for esp in c.get("esp") or []:
             if esp not in pub.E["especes"]:
                 continue
-            e = ajuste(pub.E["especes"][esp]["meteo"], reglage_pour(reglages, esp, alt))
+            e = params_pour(esp, alt, reglage_pour(reglages, esp, alt))
             h = pub.habitat(esp, px) or 0.5  # coin hors carte forestière : on fait confiance à votre coin
             ix = np.nan_to_num(indice(s["p"], s["tm"], s["tn"], s["e"], mois, esp, GRAD * (alt - s["alt"]), params=e, nord=(px or {}).get("nord", 0.0)))
             fut = [(dates[j], round(100 * (h ** EXPO) * ix[j])) for j in range(auj, len(dates))]

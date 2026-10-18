@@ -106,7 +106,12 @@
      1,
      0.85,
      0.3
-    ]
+    ],
+    "secteurs": {
+     "cote": {
+      "dT": 1
+     }
+    }
    }
   },
   "aereus": {
@@ -529,5 +534,13 @@
     ]
    }
   }
+ },
+ "secteur_cote": {
+  "description": "Côte et basses vallées basques (sous 200 m, transition jusqu'à 400 m) : air océanique humide, brouillards et sols argileux profonds. Il faut moins de pluie pour déclencher une poussée et le sol y reste frais plus longtemps.",
+  "alt_plein": 200,
+  "alt_fin": 400,
+  "k": 0.5,
+  "humide_min": 0.7,
+  "calage": "poussée massive de cèpes de Bordeaux signalée du 16 au 18 octobre 2026 en forêt basse du Labourd, après seulement 20 à 25 mm de pluie les 6-8 octobre"
  }
 }

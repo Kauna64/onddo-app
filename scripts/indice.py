@@ -37,6 +37,26 @@ def ajuste(e, adj):
     e["plage"] = e["plage"] * adj.get("k", 1)
     return e
 
+COTE = _CFG.get("secteur_cote")
+
+def poids_cote(alt):
+    """1 sur la côte et les basses vallées, 0 au-dessus de la zone de transition."""
+    if not COTE or alt is None:
+        return 0.0
+    return min(1.0, max(0.0, (COTE["alt_fin"] - alt) / (COTE["alt_fin"] - COTE["alt_plein"])))
+
+def params_pour(espece, alt, perso=None):
+    """Paramètres de l'espèce pour une altitude : réglage public de la côte, puis réglage personnel appris."""
+    e = dict(ESPECES[espece])
+    w = poids_cote(alt)
+    if w > 0:
+        e["seuil"] = e["seuil"] * (1 + w * (COTE["k"] - 1))
+        e["plage"] = e["plage"] * (1 + w * (COTE["k"] - 1))
+        e["humide_min"] = e.get("humide_min", 0.3) + w * (COTE["humide_min"] - e.get("humide_min", 0.3))
+        dT = (e.get("secteurs") or {}).get("cote", {}).get("dT", 0) * w
+        e["t"] = [x + dT for x in e["t"]]
+    return ajuste(e, perso)
+
 def secteur(alt):
     return "cote" if alt < 300 else "piemont" if alt < 900 else "montagne"
 
@@ -47,7 +67,7 @@ def indice(P, Tm, Tn, ET0, mois, espece, dT=0.0, params=None, nord=0.0):
     """Indice jour par jour. dT : correction de température pour l'altitude visée (°C).
     params : paramètres météo de l'espèce déjà ajustés (sinon ceux de especes.json).
     nord : orientation du versant, de -1 (versant sud raide) à +1 (versant nord raide), 0 = plat."""
-    e = params or ESPECES[espece]
+    e = params or ESPECES[espece]  # sans params : réglage de base, sans correction de secteur
     P, ET0 = np.nan_to_num(np.asarray(P, float)), bouche_trous(ET0)
     dT = dT - np.array([VERSANT_K[m - 1] for m in mois]) * nord  # versant nord plus frais, versant sud plus chaud
     Tm, Tn = bouche_trous(Tm) + dT, bouche_trous(Tn) + dT
