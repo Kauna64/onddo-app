@@ -1,8 +1,8 @@
 /* Service worker : fonctionnement sans réseau */
-const VERSION = "onddo-v6";
+const VERSION = "onddo-v7";
 const COQUILLE = ["./", "index.html", "app.js", "manifest.webmanifest", "icons/icon-192.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "indice.js", "carnet.js", "carnet-ui.js", "terrain.js", "carnet/onddo.yml", "data/grid.json", "data/especes.json", "data/chasse.json", "data/habitat.png", "data/forets_publiques.geojson"];
+  "indice.js", "carnet.js", "carnet-ui.js", "terrain.js", "recherche.js", "carnet/onddo.yml", "data/grid.json", "data/especes.json", "data/chasse.json", "data/habitat.png", "data/forets_publiques.geojson"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(COQUILLE)).then(() => self.skipWaiting()));
@@ -36,7 +36,7 @@ const estTuile = (url) => url.includes("data.geopf.fr/wmts") || url.includes("ti
 
 self.addEventListener("fetch", (e) => {
   const url = e.request.url;
-  if (e.request.method !== "GET" || url.startsWith("https://api.github.com")) return;
+  if (e.request.method !== "GET" || url.startsWith("https://api.github.com") || url.includes("/geocodage/")) return;
   // météo : réseau d'abord, copie locale si pas de réseau
   if (/\/data\/(meteo|especes|grid|chasse)\.json|\/data\/habitat\.png/.test(url)) {
     e.respondWith(fetch(e.request).then((r) => {

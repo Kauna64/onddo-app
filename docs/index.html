@@ -130,6 +130,16 @@ code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
   border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px;box-shadow:0 2px 8px #0003}
 .fleche{display:inline-block;color:#1f6feb;font-size:18px;transition:transform .3s}
 .voiture-icone{font-size:24px;line-height:30px;text-align:center;filter:drop-shadow(0 0 2px #fff)}
+.brand small{display:none}
+@media (min-width:430px){.brand small{display:block}}
+.recherche{position:fixed;inset:0;z-index:2500;display:none;background:#0006}
+.recherche.open{display:block}
+.rech-barre{display:flex;gap:8px;background:var(--panel);padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;border-bottom:1px solid var(--line)}
+.rech-barre input{flex:1;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+.rech-res{margin:0;background:var(--panel);max-height:70vh;overflow:auto;padding:0 12px;border-radius:0 0 14px 14px}
+.rech-res li{cursor:pointer}.rech-res .r-msg{cursor:default;padding:12px 0}
+.r-ic{flex:0 0 24px;font-size:18px;text-align:center}
+.rech-icone{font-size:26px;line-height:28px;text-align:center;filter:drop-shadow(0 1px 2px #0008)}
 </style>
 </head>
 <body>
@@ -138,6 +148,7 @@ code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
 <div class="top">
   <div class="brand"><img src="icons/icon-192.png" alt="" class="logo"><div>Onddo<small id="maj">Pyrénées-Atlantiques</small></div></div>
   <div class="spacer"></div>
+  <button class="fab" id="btn-rech" aria-label="Rechercher un lieu">🔍</button>
   <button class="fab" id="btn-terrain" aria-label="Voiture et tracé">🚗</button>
   <button class="fab" id="btn-carnet" aria-label="Mon carnet">📓</button>
   <button class="fab" id="btn-gps" aria-label="Me localiser">◎</button>
@@ -164,6 +175,10 @@ code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
 
 <button class="fab-ajout" id="btn-ajout" aria-label="Noter une sortie">＋</button>
 <div class="terrain" id="terrain"></div>
+<div class="recherche" id="recherche">
+  <div class="rech-barre"><input id="rech-q" type="search" placeholder="Commune, lieu-dit, forêt, ruisseau…" autocomplete="off" enterkeyhint="search"><button class="btn ghost" id="rech-fermer">Fermer</button></div>
+  <ul class="liste rech-res" id="rech-res"></ul>
+</div>
 <div class="panel" id="terrain-panel">
   <button class="btn ghost close" id="terrain-fermer">Fermer</button>
   <div id="terrain-corps"></div>
@@ -232,5 +247,6 @@ code{font-size:12px;background:var(--bg);padding:1px 4px;border-radius:4px}
 <script src="app.js"></script>
 <script src="carnet-ui.js"></script>
 <script src="terrain.js"></script>
+<script src="recherche.js"></script>
 </body>
 </html>

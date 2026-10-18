@@ -523,6 +523,7 @@ async function horsLigne() {
     initCarte(); controles(); jours(); dessine();
     if (window.initCarnetUI) initCarnetUI();
     if (window.initTerrain) initTerrain();
+    if (typeof Recherche !== "undefined") Recherche.init();
   } catch (e) {
     $("#status").textContent = "Erreur de chargement : " + e.message;
     throw e;
